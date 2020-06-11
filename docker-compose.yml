@@ -1,0 +1,8 @@
+version: '3'
+services:
+  main:
+    build: https://www.sigbus.info/compilerbook/Dockerfile
+    image: compilerbook
+    volumes:
+    - .:/home/user
+    tty: true
