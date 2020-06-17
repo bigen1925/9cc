@@ -5,12 +5,15 @@
 #include <stdbool.h>
 #include <string.h>
 
+// Input source code
+char *user_input;
+
 // Kind of Token
 typedef enum
 {
-    TK_RESERVED, // 予約文字
-    TK_NUM,      // 数字
-    TK_EOF,      // 入力の終わりを示すトークン
+    TK_RESERVED, // Keywords or punctuators
+    TK_NUM,      // Integer literals
+    TK_EOF,      // End-of-file markers
 } TokenKind;
 
 // Type of Token
@@ -18,7 +21,7 @@ typedef struct Token Token;
 struct Token
 {
     TokenKind kind;
-    Token *next; // a pointer of next token
+    Token *next; // next token
     int val;
     char *str;
 };
@@ -26,16 +29,23 @@ struct Token
 // current token
 Token *token;
 
-// error output
-void error(char *fmt, ...)
+// error output with a position
+void error_at(char *loc, char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
+
+    int pos = loc - user_input;
+    fprintf(stderr, "%s\n", user_input);
+    fprintf(stderr, "%*s", pos, "");
+    fprintf(stderr, "^ ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     exit(1);
 }
 
+// confirm that a token is a soecified operator, and move a pointer forward
+// return false if token is not reserved or not a specified operator
 bool consume(char op)
 {
     if (token->kind != TK_RESERVED || token->str[0] != op)
@@ -45,10 +55,12 @@ bool consume(char op)
     return true;
 };
 
+// confirm that a token is a soecified operator, and move a pointer forward
+// output error if token s not reserved or not a specified operator
 bool expect(char op)
 {
     if (token->kind != TK_RESERVED || token->str[0] != op)
-        error("token is not '%c'", op);
+        error_at(token->str, "expected '%c'", op);
 
     token = token->next;
 }
@@ -56,7 +68,7 @@ bool expect(char op)
 int expect_number()
 {
     if (token->kind != TK_NUM)
-        error("token is not number.");
+        error_at(token->str, "expected a number.");
 
     int val = token->val;
     token = token->next;
@@ -77,8 +89,10 @@ Token *new_token(TokenKind kind, Token *cur, char *str)
     return new_token;
 }
 
-Token *tokenize(char *p)
+Token *tokenize()
 {
+    char *p = user_input;
+
     Token head;
     head.next = NULL;
     Token *cur = &head;
@@ -104,7 +118,7 @@ Token *tokenize(char *p)
             continue;
         };
 
-        error("Can not tokenize.");
+        error_at(p, "Can not tokenize.");
     }
 
     new_token(TK_EOF, cur, p);
@@ -118,9 +132,10 @@ int main(int argc, char **argv)
         fprintf(stderr, "invalid number of arguments. \n");
         return 1;
     }
+    user_input = argv[1];
 
     // execute tokenizing
-    token = tokenize(argv[1]);
+    token = tokenize();
 
     printf(".intel_syntax noprefix\n");
     printf(".globl main\n");
