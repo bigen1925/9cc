@@ -6,6 +6,16 @@ char *user_input;
 ////////////////////////////////////
 // Utilities
 ////////////////////////////////////
+// error output with a position
+void error(char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    exit(1);
+}
 
 // error output with a position
 void error_at(char *loc, char *fmt, ...)
@@ -39,16 +49,29 @@ int main(int argc, char **argv)
     token = tokenize();
 
     // generate a syntax tree from tokens
-    Node *node = expr();
+    Node *node = program();
 
+    // generate header codes
     printf(".intel_syntax noprefix\n");
     printf(".globl main\n");
     printf("main:\n");
 
-    // generate codes form a syntax tree
-    gen(node);
+    // prologue
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n");
+    printf("  sub rsp, 208\n");
 
-    printf("  pop rax\n");
+    // generate codes form a syntax tree
+    for (int i = 0; code[i]; i++)
+    {
+        gen(code[i]);
+
+        printf("  pop rax\n");
+    }
+
+    // epilogue
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
     printf("  ret\n");
     return 0;
 }

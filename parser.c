@@ -44,7 +44,7 @@ Token *tokenize()
             continue;
         }
 
-        if (strchr("+-*/()<>", *p))
+        if (strchr("+-*/()<>;", *p))
         {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
@@ -56,6 +56,12 @@ Token *tokenize()
             cur->val = strtol(p, &p, 10);
             continue;
         };
+
+        if ('a' <= *p || *p <= 'z')
+        {
+            cur = new_token(TK_IDENT, cur, p++, 1);
+            continue;
+        }
 
         error_at(p, "invalid token");
     }
@@ -83,6 +89,13 @@ Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs)
     return node;
 }
 
+Node *new_lvar_node(char c)
+{
+    Node *node = new_node(ND_LVAR);
+    node->offset = (c - 'a' + 1) * 8;
+    return node;
+}
+
 Node *new_number_node(int val)
 {
     Node *node = new_node(ND_NUM);
@@ -94,13 +107,29 @@ Node *new_number_node(int val)
 // return false if token is not reserved or not a specified operator
 bool consume(char *op)
 {
-    if (token->kind != TK_RESERVED ||
-        token->len != strlen(op) ||
+    if (token->kind != TK_RESERVED &&
+        token->kind != TK_IDENT)
+        return false;
+
+    if (token->len != strlen(op) ||
         memcmp(token->str, op, token->len))
         return false;
 
     token = token->next;
     return true;
+};
+
+// confirm that a token is a identifier, and move a pointer forward
+// return false if token is not reserved or not a specified operator
+Token *consume_ident()
+{
+    if (token->kind != TK_IDENT)
+        return false;
+
+    Token *tok = token;
+
+    token = token->next;
+    return tok;
 };
 
 // confirm that a token is a soecified operator, and move a pointer forward
@@ -128,9 +157,51 @@ bool at_eof()
     return token->kind == TK_EOF;
 }
 
+////////////////////////////////////////////////
+// Syntax:
+//      program     = stmt*
+//      stmt        = expr ";"
+//      expr        = assign
+//      assign      = equality ("=" assign)?
+//      qeuality    = relational ("==" ralational | "!=" relational)*
+//      relational  = add ("<" add | "<=" add | ">" add | ">= add")*
+//      add         = mul ("+" mul | "-" mul)*
+//      mul         = unary ("*" unary | "/" unary)
+//      unary       = ("*" | "-")? primary
+//      primary     = num | ident | "(" expr ")"
+////////////////////////////////////////////////
+Node *code[100];
+
+Node *program()
+{
+    int i = 0;
+    while (!at_eof())
+    {
+        code[i++] = stmt();
+    }
+    code[i] = NULL;
+}
+
+Node *stmt()
+{
+    Node *node = expr();
+    expect(';');
+    return node;
+}
+
 Node *expr()
 {
-    return equality();
+    return assign();
+}
+
+Node *assign()
+{
+    Node *node = equality();
+    if (consume("="))
+    {
+        node = new_binary_node(ND_ASSIGN, node, assign());
+    }
+    return node;
 }
 
 Node *equality()
@@ -244,6 +315,12 @@ Node *primary()
         Node *node = expr();
         consume(")");
         return node;
+    }
+
+    Token *tok = consume_ident();
+    if (tok)
+    {
+        return new_lvar_node(tok->str[0]);
     }
 
     return new_number_node(expect_number());
