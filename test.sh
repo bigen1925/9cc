@@ -26,7 +26,6 @@ assert 41 " 12 + 34 - 5 ;"
 assert 47 "5 + 6*7 ;"
 assert 15 "5 * (9 - 6);"
 assert 4 "(3 + 5) / 2;"
-
 assert 5 "-3 + 8;"
 assert 2 "8 + -3*+2;"
 assert 10 "- - +10;"
@@ -48,7 +47,12 @@ assert 4 "foo=4;"
 assert 4 "foo=4;foo;"
 assert 9 "foo=4;foo+5;"
 assert 7 "foo=4;bar=3;foo+bar;"
+
 assert 5 "return 5; return 8;"
 assert 3 "return_var = 3; return return_var;"
+
+assert 2 "if (1) return 2;"
+assert 3 "if (0) return 2; else return 3;"
+assert 5 "a=10; if (a < 5) return 4; else return 5; return 6;"
 
 echo "OK"

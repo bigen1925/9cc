@@ -67,14 +67,14 @@ int main(int argc, char **argv)
     debug("\nTARGET: %s", user_input);
 
     // generate tokens from a input string
-    debug("::::::start_tokenize::::::\n");
+    debug("\n::::::start_tokenize::::::");
     token = tokenize();
-    debug("::::::end_tokenize::::::\n");
+    debug("\n::::::end_tokenize::::::");
 
     // generate a syntax tree from tokens
-    debug("::::::start_AST::::::\n");
+    debug("\n::::::start_AST::::::");
     Node *node = program();
-    debug("::::::end_AST::::::\n");
+    debug("\n::::::end_AST::::::\n");
 
     // generate header codes
     printf(".intel_syntax noprefix\n");

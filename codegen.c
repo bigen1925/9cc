@@ -4,6 +4,8 @@
 // Code Generator
 ////////////////////////////////////
 
+int if_stmt_seq = 0;
+
 void gen_lval(Node *node)
 {
     if (node->kind != ND_LVAR)
@@ -34,8 +36,8 @@ void gen(Node *node)
     if (node->kind == ND_ASSIGN)
     {
 
-        gen_lval(node->lhs);
-        gen(node->rhs);
+        gen_lval(node->first);
+        gen(node->second);
 
         printf("  pop rdi\n");
         printf("  pop rax\n");
@@ -45,7 +47,7 @@ void gen(Node *node)
     }
     if (node->kind == ND_RETURN)
     {
-        gen(node->lhs);
+        gen(node->first);
 
         printf("  pop rax\n");
         printf("  mov rsp, rbp\n");
@@ -53,9 +55,30 @@ void gen(Node *node)
         printf("  ret\n");
         return;
     }
+    if (node->kind == ND_IF)
+    {
+        gen(node->first);
 
-    gen(node->lhs);
-    gen(node->rhs);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+
+        printf("  je .L_if_else_%d\n", if_stmt_seq);
+
+        gen(node->second);
+
+        printf("  jmp .L_if_end_%d\n", if_stmt_seq);
+
+        printf(".L_if_else_%d:\n", if_stmt_seq);
+
+        if (node->third != NULL)
+            gen(node->third);
+
+        printf(".L_if_end_%d:\n", if_stmt_seq);
+        return;
+    }
+
+    gen(node->first);
+    gen(node->second);
 
     printf("  pop rdi\n");
     printf("  pop rax\n");

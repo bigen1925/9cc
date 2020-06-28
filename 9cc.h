@@ -22,12 +22,13 @@ typedef enum
     TK_LPAR,   // "("
     TK_RPAR,   // ")"
     TK_PUNC,   // ";"
-    TK_IDENT,  // <identifier>
-    TK_NUM,    // <integer literal>
     TK_RETURN, // "return"
     TK_IF,     // "if"
+    TK_ELSE,   // "else"
     TK_WHILE,  // "while"
     TK_FOR,    // "for"
+    TK_IDENT,  // <identifier>
+    TK_NUM,    // <integer literal>
     TK_EOF,    // End-of-file markers
 } TokenKind;
 
@@ -54,6 +55,7 @@ typedef enum
     ND_LT,     // <
     ND_LTE,    // <=
     ND_ASSIGN, // =
+    ND_IF,     // if
     ND_LVAR,   // Local Variable
     ND_NUM,    // Number
     ND_RETURN, // return
@@ -64,8 +66,10 @@ typedef struct Node Node;
 struct Node
 {
     NodeKind kind;
-    Node *lhs;
-    Node *rhs;
+    Node *first;
+    Node *second;
+    Node *third;
+    Node *fourth;
     int val;
     int offset;
 };

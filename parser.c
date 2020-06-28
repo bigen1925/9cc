@@ -142,6 +142,18 @@ Token *tokenize()
             p += 6;
             continue;
         }
+        if ((strncmp(p, "if", 2) == 0) && !is_alnum(p[2]))
+        {
+            cur = new_token(TK_IF, cur, p, 2);
+            p += 2;
+            continue;
+        }
+        if ((strncmp(p, "else", 4) == 0) && !is_alnum(p[4]))
+        {
+            cur = new_token(TK_ELSE, cur, p, 4);
+            p += 4;
+            continue;
+        }
         if ('a' <= *p && *p <= 'z')
         {
             cur = new_ident_token(cur, p);
@@ -193,16 +205,26 @@ Node *new_node(NodeKind kind)
 Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs)
 {
     Node *node = new_node(kind);
-    node->lhs = lhs;
-    node->rhs = rhs;
+    node->first = lhs;
+    node->second = rhs;
     return node;
 }
 
-Node *new_return_node(Node *lhs)
+Node *new_if_node(Node *condition, Node *body, Node *_else)
 {
-    Node *node = new_node(ND_RETURN);
-    node->lhs = lhs;
+    Node *node = new_node(ND_IF);
+    node->first = condition;
+    node->second = body;
+    node->third = _else;
+
     return node;
+}
+
+Node *new_return_node(Node *node)
+{
+    Node *nd = new_node(ND_RETURN);
+    nd->first = node;
+    return nd;
 }
 
 Node *new_lvar_node(int offset)
@@ -251,6 +273,7 @@ void expect(TokenKind kind)
         strncpy(s, token->str, token->len);
         error_at(token->str, "expected '%s'", s);
     }
+
     token = token->next;
 }
 
@@ -307,16 +330,36 @@ Node *stmt()
     debug("::::::start_stmt::::::");
     Node *node;
 
-    if (consume(TK_RETURN))
+    if (consume(TK_IF))
     {
-        debug("::stmt::return");
-        node = new_return_node(expr());
+        debug("::stmt::if");
+        expect(TK_LPAR);
+        Node *condition = expr();
+        expect(TK_RPAR);
+        Node *body = stmt();
+        Node *_else = NULL;
+        if (consume(TK_ELSE))
+        {
+            debug("::stmt::else");
+            _else = stmt();
+        }
+
+        node = new_if_node(condition, body, _else);
     }
     else
     {
-        node = expr();
+        if (consume(TK_RETURN))
+        {
+            debug("::stmt::return");
+            node = new_return_node(expr());
+        }
+        else
+        {
+            node = expr();
+        }
+        expect(TK_PUNC);
     }
-    expect(TK_PUNC);
+
     debug("::::::end_stmt::::::");
     return node;
 }
@@ -452,8 +495,9 @@ Node *unary()
     {
         return new_binary_node(ND_SUB, new_number_node(0), unary());
     }
+    Node *node = primary();
     debug("::::::end_unary::::::");
-    return primary();
+    return node;
 }
 
 Node *primary()
