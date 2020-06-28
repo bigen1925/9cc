@@ -194,6 +194,7 @@ LVar *find_lvar(Token *tok)
 ////////////////////////////////////
 // AST Generator
 ////////////////////////////////////
+int if_stmt_seq = 0;
 
 Node *new_node(NodeKind kind)
 {
@@ -210,12 +211,13 @@ Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs)
     return node;
 }
 
-Node *new_if_node(Node *condition, Node *body, Node *_else)
+Node *new_if_node(Node *condition, Node *body, Node *_else, int seq)
 {
     Node *node = new_node(ND_IF);
     node->first = condition;
     node->second = body;
     node->third = _else;
+    node->seq = seq;
 
     return node;
 }
@@ -344,7 +346,7 @@ Node *stmt()
             _else = stmt();
         }
 
-        node = new_if_node(condition, body, _else);
+        node = new_if_node(condition, body, _else, if_stmt_seq++);
     }
     else
     {

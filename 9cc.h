@@ -72,6 +72,7 @@ struct Node
     Node *fourth;
     int val;
     int offset;
+    int seq;
 };
 
 extern char *user_input;

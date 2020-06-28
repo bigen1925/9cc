@@ -4,8 +4,6 @@
 // Code Generator
 ////////////////////////////////////
 
-int if_stmt_seq = 0;
-
 void gen_lval(Node *node)
 {
     if (node->kind != ND_LVAR)
@@ -62,18 +60,18 @@ void gen(Node *node)
         printf("  pop rax\n");
         printf("  cmp rax, 0\n");
 
-        printf("  je .L_if_else_%d\n", if_stmt_seq);
+        printf("  je .L_if_else_%d\n", node->seq);
 
         gen(node->second);
 
-        printf("  jmp .L_if_end_%d\n", if_stmt_seq);
+        printf("  jmp .L_if_end_%d\n", node->seq);
 
-        printf(".L_if_else_%d:\n", if_stmt_seq);
+        printf(".L_if_else_%d:\n", node->seq);
 
         if (node->third != NULL)
             gen(node->third);
 
-        printf(".L_if_end_%d:\n", if_stmt_seq);
+        printf(".L_if_end_%d:\n", node->seq);
         return;
     }
 

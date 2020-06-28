@@ -53,6 +53,16 @@ assert 3 "return_var = 3; return return_var;"
 
 assert 2 "if (1) return 2;"
 assert 3 "if (0) return 2; else return 3;"
-assert 5 "a=10; if (a < 5) return 4; else return 5; return 6;"
+assert 100 "
+a = 10;
+if (a < 0)
+    return 0;
+else if (a < 5)
+    return 5;
+else
+    return 100;
+
+return 127;
+"
 
 echo "OK"
