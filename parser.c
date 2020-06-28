@@ -11,6 +11,14 @@ bool startswith(char *p, char *q)
     return memcmp(p, q, strlen(q)) == 0;
 }
 
+bool is_alnum(char c)
+{
+    return ('a' <= c && c <= 'z') ||
+           ('A' <= c && c <= 'Z') ||
+           ('0' <= c && c <= '9') ||
+           (c == '_');
+}
+
 Token *new_token(TokenKind kind, Token *cur, char *str, int len)
 {
     Token *new_token = calloc(1, sizeof(Token));
@@ -18,6 +26,23 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len)
     new_token->str = str;
     cur->next = new_token;
     new_token->len = len;
+    return new_token;
+}
+
+Token *new_ident_token(Token *cur, char *str)
+{
+    Token *new_token = calloc(1, sizeof(Token));
+    new_token->kind = TK_IDENT;
+    new_token->str = str;
+    new_token->len = 1;
+    str++;
+    while (is_alnum(*str))
+    {
+        new_token->len++;
+        str++;
+    }
+
+    cur->next = new_token;
     return new_token;
 }
 
@@ -44,7 +69,7 @@ Token *tokenize()
             continue;
         }
 
-        if (strchr("+-*/()<>;", *p))
+        if (strchr("+-*/()<>=;", *p))
         {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
@@ -57,9 +82,17 @@ Token *tokenize()
             continue;
         };
 
-        if ('a' <= *p || *p <= 'z')
+        if ((strncmp(p, "return", 6) == 0) && !is_alnum(p[6]))
         {
-            cur = new_token(TK_IDENT, cur, p++, 1);
+            cur = new_token(TK_RETURN, cur, p, 6);
+            p += 6;
+            continue;
+        }
+
+        if ('a' <= *p && *p <= 'z')
+        {
+            cur = new_ident_token(cur, p);
+            p += cur->len;
             continue;
         }
 
@@ -68,6 +101,23 @@ Token *tokenize()
 
     new_token(TK_EOF, cur, p, 0);
     return head.next;
+}
+
+////////////////////////////////////
+// Local Variables
+////////////////////////////////////
+LVar *locals;
+
+LVar *find_lvar(Token *tok)
+{
+    for (LVar *var = locals; var; var = var->next)
+    {
+        if (var->len && tok->len == var->len && !memcmp(tok->str, var->name, var->len))
+        {
+            return var;
+        }
+    }
+    return NULL;
 }
 
 ////////////////////////////////////
@@ -89,10 +139,17 @@ Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs)
     return node;
 }
 
-Node *new_lvar_node(char c)
+Node *new_return_node(Node *lhs)
+{
+    Node *node = new_node(ND_RETURN);
+    node->lhs = lhs;
+    return node;
+}
+
+Node *new_lvar_node(int offset)
 {
     Node *node = new_node(ND_LVAR);
-    node->offset = (c - 'a' + 1) * 8;
+    node->offset = offset;
     return node;
 }
 
@@ -103,7 +160,7 @@ Node *new_number_node(int val)
     return node;
 }
 
-// confirm that a token is a soecified operator, and move a pointer forward
+// confirm that a token is a soecified keyword, and move a pointer forward
 // return false if token is not reserved or not a specified operator
 bool consume(char *op)
 {
@@ -119,8 +176,6 @@ bool consume(char *op)
     return true;
 };
 
-// confirm that a token is a identifier, and move a pointer forward
-// return false if token is not reserved or not a specified operator
 Token *consume_ident()
 {
     if (token->kind != TK_IDENT)
@@ -132,9 +187,18 @@ Token *consume_ident()
     return tok;
 };
 
+bool consume_return()
+{
+    if (token->kind != TK_RETURN)
+        return false;
+
+    token = token->next;
+    return true;
+};
+
 // confirm that a token is a soecified operator, and move a pointer forward
 // output error if token s not reserved or not a specified operator
-bool expect(char op)
+void expect(char op)
 {
     if (token->kind != TK_RESERVED || token->str[0] != op)
         error_at(token->str, "expected '%c'", op);
@@ -160,7 +224,7 @@ bool at_eof()
 ////////////////////////////////////////////////
 // Syntax:
 //      program     = stmt*
-//      stmt        = expr ";"
+//      stmt        = (return)? expr ";"
 //      expr        = assign
 //      assign      = equality ("=" assign)?
 //      qeuality    = relational ("==" ralational | "!=" relational)*
@@ -174,6 +238,8 @@ Node *code[100];
 
 Node *program()
 {
+    locals = calloc(1, sizeof(LVar));
+
     int i = 0;
     while (!at_eof())
     {
@@ -184,7 +250,15 @@ Node *program()
 
 Node *stmt()
 {
-    Node *node = expr();
+    Node *node;
+    if (consume_return())
+    {
+        node = new_return_node(expr());
+    }
+    else
+    {
+        node = expr();
+    }
     expect(';');
     return node;
 }
@@ -320,7 +394,19 @@ Node *primary()
     Token *tok = consume_ident();
     if (tok)
     {
-        return new_lvar_node(tok->str[0]);
+        LVar *var = find_lvar(tok);
+
+        if (!var)
+        {
+            var = calloc(1, sizeof(LVar));
+            var->next = locals;
+            var->len = tok->len;
+            var->name = tok->str;
+            var->offset = locals->offset + 8;
+            locals = var;
+        }
+
+        return new_lvar_node(var->offset);
     }
 
     return new_number_node(expect_number());

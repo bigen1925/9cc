@@ -12,7 +12,7 @@ assert() {
     if [ "${actual}" = "${expected}" ];then
         echo "${input} => ${actual}"
     else
-        echo "${input} => ${ecpectd} expected, but got ${actual}"
+        echo "${input} => ${expected} expected, but got ${actual}"
         exit 1
     fi
 }
@@ -43,9 +43,11 @@ assert 0 "3 > 3;"
 assert 1 "3 >= 3;"
 assert 0 "2 >= 3;"
 
-assert 4 "a=4;"
-assert 4 "a=4;a;"
-assert 9 "a=4;a+5;"
-assert 7 "a=4;b=3;a+b;"
+assert 4 "foo=4;"
+assert 4 "foo=4;foo;"
+assert 9 "foo=4;foo+5;"
+assert 7 "foo=4;bar=3;foo+bar;"
+assert 5 "return 5; return 8;"
+assert 3 "return_var = 3; return return_var;"
 
 echo "OK"

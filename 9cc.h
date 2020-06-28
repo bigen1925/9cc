@@ -9,6 +9,7 @@
 typedef enum
 {
     TK_RESERVED, // Keywords or punctuators
+    TK_RETURN,   // Return Keyword
     TK_IDENT,    // Identifier
     TK_NUM,      // Integer literals
     TK_EOF,      // End-of-file markers
@@ -39,6 +40,7 @@ typedef enum
     ND_ASSIGN, // =
     ND_LVAR,   // Local Variable
     ND_NUM,    // Number
+    ND_RETURN, // return
 } NodeKind;
 
 // Node Type
@@ -71,3 +73,15 @@ Node *add();
 Node *mul();
 Node *primary();
 Node *unary();
+
+// Local Varicables
+typedef struct LVar LVar;
+struct LVar
+{
+    LVar *next;
+    char *name;
+    int len;
+    int offset;
+};
+
+extern LVar *lacals;
