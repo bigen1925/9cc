@@ -3,7 +3,7 @@ assert() {
     expected="$1"
     input="$2"
     
-    ./9cc "${input}" > tmp.s
+    ./9cc "${input}" "${debug_mode}" > tmp.s
     cc -o tmp tmp.s
     ./tmp
     
@@ -17,6 +17,7 @@ assert() {
     fi
 }
 
+debug_mode="$1"
 
 assert 0 "0;"
 assert 42 "42;"

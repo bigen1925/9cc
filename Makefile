@@ -7,10 +7,13 @@ OBJS=$(SRCS:.c=.o)
 
 $(OBJS): 9cc.h
 
+debug: 9cc
+	./test.sh debug
+
 test: 9cc
 	./test.sh
 
 clean:
 	rm -f 9cc *.o *~ tmp*
 
-.PHONY: test clean
+.PHONY: test clean debug

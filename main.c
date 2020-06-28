@@ -2,10 +2,23 @@
 
 // Input source code
 char *user_input;
+bool debug_mode = false;
 
 ////////////////////////////////////
 // Utilities
 ////////////////////////////////////
+// output debug log to stderr
+void debug(char *fmt, ...)
+{
+    if (!debug_mode)
+        return;
+
+    va_list ap;
+    va_start(ap, fmt);
+
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+}
 // error output with a position
 void error(char *fmt, ...)
 {
@@ -38,18 +51,30 @@ void error_at(char *loc, char *fmt, ...)
 
 int main(int argc, char **argv)
 {
-    if (argc != 2)
+    if (argc > 3)
     {
         fprintf(stderr, "invalid number of arguments. \n");
         return 1;
     }
     user_input = argv[1];
 
+    if (!strcmp(argv[2], "debug"))
+    {
+        fprintf(stderr, "WORKING ON DEBUG_MODE. \n");
+        debug_mode = true;
+    }
+
+    debug("\nTARGET: %s", user_input);
+
     // generate tokens from a input string
+    debug("::::::start_tokenize::::::\n");
     token = tokenize();
+    debug("::::::end_tokenize::::::\n");
 
     // generate a syntax tree from tokens
+    debug("::::::start_AST::::::\n");
     Node *node = program();
+    debug("::::::end_AST::::::\n");
 
     // generate header codes
     printf(".intel_syntax noprefix\n");

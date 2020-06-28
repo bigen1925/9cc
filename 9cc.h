@@ -8,11 +8,27 @@
 // Token Kind
 typedef enum
 {
-    TK_RESERVED, // Keywords or punctuators
-    TK_RETURN,   // Return Keyword
-    TK_IDENT,    // Identifier
-    TK_NUM,      // Integer literals
-    TK_EOF,      // End-of-file markers
+    TK_ADD,    // "+"
+    TK_SUB,    // "-"
+    TK_MUL,    // "*"
+    TK_DIV,    // "/"
+    TK_EQ,     // "=="
+    TK_NEQ,    // "!="
+    TK_LT,     // "<"
+    TK_LTE,    // "<="
+    TK_GT,     // ">"
+    TK_GTE,    // ">="
+    TK_ASSIGN, // "="
+    TK_LPAR,   // "("
+    TK_RPAR,   // ")"
+    TK_PUNC,   // ";"
+    TK_IDENT,  // <identifier>
+    TK_NUM,    // <integer literal>
+    TK_RETURN, // "return"
+    TK_IF,     // "if"
+    TK_WHILE,  // "while"
+    TK_FOR,    // "for"
+    TK_EOF,    // End-of-file markers
 } TokenKind;
 
 // Token Type
@@ -55,6 +71,7 @@ struct Node
 };
 
 extern char *user_input;
+void debug(char *fmt, ...);
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 extern Token *token;
