@@ -76,6 +76,7 @@ struct Node
 };
 
 extern char *user_input;
+extern bool debug_mode;
 void debug(char *fmt, ...);
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
