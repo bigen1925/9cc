@@ -56,6 +56,8 @@ typedef enum
     ND_LTE,    // <=
     ND_ASSIGN, // =
     ND_IF,     // if
+    ND_WHILE,  // while
+    ND_FOR,    // for
     ND_LVAR,   // Local Variable
     ND_NUM,    // Number
     ND_RETURN, // return

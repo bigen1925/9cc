@@ -74,6 +74,22 @@ void gen(Node *node)
         printf(".L_if_end_%d:\n", node->seq);
         return;
     }
+    if (node->kind == ND_WHILE)
+    {
+        printf(".L_while_begin_%d:\n", node->seq);
+        gen(node->first);
+
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+
+        printf("  je .L_while_end_%d\n", node->seq);
+
+        gen(node->second);
+        printf("  jmp .L_while_begin_%d\n", node->seq);
+
+        printf(".L_while_end_%d:\n", node->seq);
+        return;
+    }
 
     gen(node->first);
     gen(node->second);

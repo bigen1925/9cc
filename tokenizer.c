@@ -154,12 +154,19 @@ Token *tokenize()
             p += 4;
             continue;
         }
+        if ((strncmp(p, "while", 5) == 0) && !is_alnum(p[5]))
+        {
+            cur = new_token(TK_WHILE, cur, p, 5);
+            p += 5;
+            continue;
+        }
         if ('a' <= *p && *p <= 'z')
         {
             cur = new_ident_token(cur, p);
             p += cur->len;
             continue;
         }
+
         if (isdigit(*p))
         {
             cur = new_token(TK_NUM, cur, p, 0);

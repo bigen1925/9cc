@@ -65,4 +65,11 @@ else
 return 127;
 "
 
+assert 10 "
+a = 0;
+while (a < 10)
+    a = a + 1;
+return a;
+"
+
 echo "OK"

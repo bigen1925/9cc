@@ -21,6 +21,8 @@ LVar *find_lvar(Token *tok)
 // AST Generator
 ////////////////////////////////////
 int if_stmt_seq = 0;
+int while_stmt_seq = 0;
+int for_stmt_seq = 0;
 
 Node *new_node(NodeKind kind)
 {
@@ -43,6 +45,16 @@ Node *new_if_node(Node *condition, Node *body, Node *_else, int seq)
     node->first = condition;
     node->second = body;
     node->third = _else;
+    node->seq = seq;
+
+    return node;
+}
+
+Node *new_while_node(Node *condition, Node *body, int seq)
+{
+    Node *node = new_node(ND_WHILE);
+    node->first = condition;
+    node->second = body;
     node->seq = seq;
 
     return node;
@@ -173,6 +185,16 @@ Node *stmt()
         }
 
         node = new_if_node(condition, body, _else, if_stmt_seq++);
+    }
+    else if (consume(TK_WHILE))
+    {
+        debug("::stmt::while");
+        expect(TK_LPAR);
+        Node *condition = expr();
+        expect(TK_RPAR);
+        Node *body = stmt();
+
+        node = new_while_node(condition, body, while_stmt_seq++);
     }
     else
     {
