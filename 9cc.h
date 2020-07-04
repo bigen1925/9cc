@@ -21,6 +21,8 @@ typedef enum
     TK_ASSIGN, // "="
     TK_LPAR,   // "("
     TK_RPAR,   // ")"
+    TK_LBRA,   // "{"
+    TK_RBRA,   // "}"
     TK_PUNC,   // ";"
     TK_RETURN, // "return"
     TK_IF,     // "if"
@@ -77,6 +79,24 @@ struct Node
     int seq;
 };
 
+// Node Linked List
+typedef struct ListItem ListItem;
+struct ListItem
+{
+    Node *node;
+    ListItem *next;
+};
+
+typedef struct LinkedList LinkedList;
+struct LinkedList
+{
+    ListItem *head;
+    ListItem *tail;
+};
+
+LinkedList *new_node_list();
+void append(LinkedList *list, Node *node);
+
 extern char *user_input;
 extern bool debug_mode;
 void debug(char *fmt, ...);
@@ -87,7 +107,7 @@ extern Token *token;
 Token *tokenize();
 void gen(Node *node);
 
-extern Node *code[100];
+extern LinkedList *code;
 Node *program();
 Node *stmt();
 Node *assign();

@@ -55,21 +55,21 @@ void gen(Node *node)
     }
     if (node->kind == ND_IF)
     {
-        gen(node->first);
+        gen(node->first); // condition
 
         printf("  pop rax\n");
         printf("  cmp rax, 0\n");
 
         printf("  je .L_if_else_%d\n", node->seq);
 
-        gen(node->second);
+        gen(node->second); // body
 
         printf("  jmp .L_if_end_%d\n", node->seq);
 
         printf(".L_if_else_%d:\n", node->seq);
 
         if (node->third != NULL)
-            gen(node->third);
+            gen(node->third); // else
 
         printf(".L_if_end_%d:\n", node->seq);
         return;
@@ -77,17 +77,39 @@ void gen(Node *node)
     if (node->kind == ND_WHILE)
     {
         printf(".L_while_begin_%d:\n", node->seq);
-        gen(node->first);
+        gen(node->first); // condition
 
         printf("  pop rax\n");
         printf("  cmp rax, 0\n");
 
         printf("  je .L_while_end_%d\n", node->seq);
 
-        gen(node->second);
+        gen(node->second); // body
         printf("  jmp .L_while_begin_%d\n", node->seq);
 
         printf(".L_while_end_%d:\n", node->seq);
+        return;
+    }
+    if (node->kind == ND_FOR)
+    {
+        if (node->first != NULL)
+            gen(node->first); // initialization
+        printf(".L_for_begin_%d:\n", node->seq);
+
+        if (node->second != NULL)
+        {
+            gen(node->second); // condition
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  je .L_for_end_%d\n", node->seq);
+        }
+
+        gen(node->fourth); // body
+        if (node->third != NULL)
+            gen(node->third); // step
+        printf("  jmp .L_for_begin_%d\n", node->seq);
+
+        printf(".L_for_end_%d:\n", node->seq);
         return;
     }
 

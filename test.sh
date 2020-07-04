@@ -43,16 +43,11 @@ assert 0 "3 > 3;"
 assert 1 "3 >= 3;"
 assert 0 "2 >= 3;"
 
-assert 4 "foo=4;"
-assert 4 "foo=4;foo;"
-assert 9 "foo=4;foo+5;"
 assert 7 "foo=4;bar=3;foo+bar;"
 
 assert 5 "return 5; return 8;"
 assert 3 "return_var = 3; return return_var;"
 
-assert 2 "if (1) return 2;"
-assert 3 "if (0) return 2; else return 3;"
 assert 100 "
 a = 10;
 if (a < 0)
@@ -70,6 +65,33 @@ a = 0;
 while (a < 10)
     a = a + 1;
 return a;
+"
+
+assert 5 "
+a = 100;
+while (a > 5)
+    a = a - 1;
+
+return a;
+"
+
+assert 45 "
+sum = 0;
+for (i=0; i < 10; i = i + 1)
+    sum = sum + i;
+return sum;
+"
+assert 10 "
+i = 0;
+for (; i < 10; i = i + 1)
+    i = i + 1;
+return i;
+"
+assert 12 "
+sum = 0;
+for (i=3; sum < 10;)
+    sum = sum + i;
+return sum;
 "
 
 echo "OK"

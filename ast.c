@@ -39,6 +39,10 @@ Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs)
     return node;
 }
 
+Node *new_block_node(Node *condition, Node *body, Node *_else, int seq)
+{
+}
+
 Node *new_if_node(Node *condition, Node *body, Node *_else, int seq)
 {
     Node *node = new_node(ND_IF);
@@ -55,6 +59,18 @@ Node *new_while_node(Node *condition, Node *body, int seq)
     Node *node = new_node(ND_WHILE);
     node->first = condition;
     node->second = body;
+    node->seq = seq;
+
+    return node;
+}
+
+Node *new_for_node(Node *initialization, Node *condition, Node *step, Node *body, int seq)
+{
+    Node *node = new_node(ND_FOR);
+    node->first = initialization;
+    node->second = condition;
+    node->third = step;
+    node->fourth = body;
     node->seq = seq;
 
     return node;
@@ -137,6 +153,7 @@ bool at_eof()
 // Syntax:
 //      program     = stmt*
 //      stmt        = (return)? expr ";"
+//                  | "{" stmt* "}"
 //                  | "if" "(" expr ")" stmt ("else" stmt)?
 //                  | "while" "(" expr ")" stmt
 //                  | "for" "(" expr? ";" expr? ";" expr? ";" ")" stmt
@@ -149,19 +166,21 @@ bool at_eof()
 //      unary       = ("*" | "-")? primary
 //      primary     = num | ident | "(" expr ")"
 ////////////////////////////////////////////////
-Node *code[100];
+
+LinkedList *code;
 
 Node *program()
 {
+    code = new_node_list();
+
     debug("::::::start_program::::::");
     locals = calloc(1, sizeof(LVar));
 
-    int i = 0;
     while (!at_eof())
     {
-        code[i++] = stmt();
+        debug("::program::call_append");
+        append(code, stmt());
     }
-    code[i] = NULL;
     debug("::::::end_program::::::");
 }
 
@@ -195,6 +214,32 @@ Node *stmt()
         Node *body = stmt();
 
         node = new_while_node(condition, body, while_stmt_seq++);
+    }
+    else if (consume(TK_FOR))
+    {
+        debug("::stmt::for");
+        expect(TK_LPAR);
+        Node *initialization = NULL;
+        Node *condition = NULL;
+        Node *step = NULL;
+        if (!consume(TK_PUNC))
+        {
+            initialization = expr();
+            expect(TK_PUNC);
+        }
+        if (!consume(TK_PUNC))
+        {
+            condition = expr();
+            expect(TK_PUNC);
+        }
+        if (!consume(TK_RPAR))
+        {
+            step = expr();
+            expect(TK_RPAR);
+        }
+        Node *body = stmt();
+
+        node = new_for_node(initialization, condition, step, body, for_stmt_seq++);
     }
     else
     {

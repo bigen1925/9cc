@@ -136,6 +136,16 @@ Token *tokenize()
             cur = new_token(TK_PUNC, cur, p++, 1);
             continue;
         }
+        if (startswith(p, "{"))
+        {
+            cur = new_token(TK_LBRA, cur, p++, 1);
+            continue;
+        }
+        if (startswith(p, "}"))
+        {
+            cur = new_token(TK_RBRA, cur, p++, 1);
+            continue;
+        }
         if ((strncmp(p, "return", 6) == 0) && !is_alnum(p[6]))
         {
             cur = new_token(TK_RETURN, cur, p, 6);
@@ -158,6 +168,12 @@ Token *tokenize()
         {
             cur = new_token(TK_WHILE, cur, p, 5);
             p += 5;
+            continue;
+        }
+        if ((strncmp(p, "for", 3) == 0) && !is_alnum(p[3]))
+        {
+            cur = new_token(TK_FOR, cur, p, 3);
+            p += 3;
             continue;
         }
         if ('a' <= *p && *p <= 'z')

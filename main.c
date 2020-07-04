@@ -46,9 +46,13 @@ int main(int argc, char **argv)
     printf("  sub rsp, 208\n");
 
     // generate codes form a syntax tree
-    for (int i = 0; code[i]; i++)
+    for (ListItem *current = code->head; current != NULL;)
     {
-        gen(code[i]);
+        debug("current:::%p", current);
+        gen(current->node);
+
+        current = current->next;
+        debug("next:::%p", current);
 
         printf("  pop rax\n");
     }

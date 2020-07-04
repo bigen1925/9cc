@@ -3,6 +3,33 @@
 ////////////////////////////////////
 // Utilities
 ////////////////////////////////////
+LinkedList *new_node_list()
+{
+    LinkedList *list = calloc(1, sizeof(LinkedList));
+    list->head = NULL;
+    list->tail = NULL;
+
+    return list;
+}
+
+void append(LinkedList *list, Node *node)
+{
+    ListItem *item = calloc(1, sizeof(ListItem));
+    item->node = node;
+    item->next = NULL;
+
+    if (list->head == NULL)
+    {
+        list->head = item;
+    }
+    else
+    {
+        list->tail->next = item;
+    }
+
+    list->tail = item;
+}
+
 // output debug log to stderr
 void debug(char *fmt, ...)
 {
