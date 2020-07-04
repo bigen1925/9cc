@@ -94,4 +94,26 @@ for (i=3; sum < 10;)
 return sum;
 "
 
+assert 50 "
+foo = 0;
+bar = 0;
+for (i=0; i < 10; i = i+1) {
+    foo = foo + 2;
+    bar = bar + 3;
+}
+return foo + bar;
+"
+
+assert 15 "
+foo = 0;
+bar = 0;
+for (;;) {
+    foo = foo + 2;
+    bar = bar + 3;
+    if (foo + bar > 13) {
+        return foo + bar;
+    }
+}
+"
+
 echo "OK"

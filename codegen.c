@@ -15,10 +15,12 @@ void gen_lval(Node *node) {
 }
 
 void gen(Node *node) {
+  debug("::::::generate::kind -> %d", node->kind);
   if (node->kind == ND_NUM) {
     printf("  push %d \n", node->val);
     return;
   }
+
   if (node->kind == ND_LVAR) {
     gen_lval(node);
     printf("  pop rax\n");
@@ -26,9 +28,10 @@ void gen(Node *node) {
     printf("  push rax\n");
     return;
   }
+
   if (node->kind == ND_ASSIGN) {
-    gen_lval(node->first);
-    gen(node->second);
+    gen_lval(get_child_at(0, node));
+    gen(get_child_at(1, node));
 
     printf("  pop rdi\n");
     printf("  pop rax\n");
@@ -36,8 +39,9 @@ void gen(Node *node) {
     printf("  push rdi\n");
     return;
   }
+
   if (node->kind == ND_RETURN) {
-    gen(node->first);
+    gen(get_child_at(0, node));
 
     printf("  pop rax\n");
     printf("  mov rsp, rbp\n");
@@ -45,56 +49,59 @@ void gen(Node *node) {
     printf("  ret\n");
     return;
   }
+
   if (node->kind == ND_IF) {
-    gen(node->first);  // condition
+    gen(get_child_at(0, node));  // condition
 
     printf("  pop rax\n");
     printf("  cmp rax, 0\n");
     printf("  je .L_if_else_%d\n", node->seq);
 
-    gen(node->second);  // body
+    gen(get_child_at(1, node));  // body
 
     printf("  jmp .L_if_end_%d\n", node->seq);
     printf(".L_if_else_%d:\n", node->seq);
 
-    if (node->third != NULL) gen(node->third);  // else
+    if (get_child_at(2, node) != NULL) gen(get_child_at(2, node));  // else
 
     printf(".L_if_end_%d:\n", node->seq);
     return;
   }
+
   if (node->kind == ND_WHILE) {
     printf(".L_while_begin_%d:\n", node->seq);
 
-    gen(node->first);  // condition
+    gen(get_child_at(0, node));  // condition
 
     printf("  pop rax\n");
     printf("  cmp rax, 0\n");
     printf("  je .L_while_end_%d\n", node->seq);
 
-    gen(node->second);  // body
+    gen(get_child_at(1, node));  // body
 
     printf("  jmp .L_while_begin_%d\n", node->seq);
     printf(".L_while_end_%d:\n", node->seq);
     return;
   }
+
   if (node->kind == ND_FOR) {
-    if (node->first != NULL) {
-      gen(node->first);  // initialization
+    if (get_child_at(0, node) != NULL) {
+      gen(get_child_at(0, node));  // initialization
     }
 
     printf(".L_for_begin_%d:\n", node->seq);
 
-    if (node->second != NULL) {
-      gen(node->second);  // condition
+    if (get_child_at(1, node) != NULL) {
+      gen(get_child_at(1, node));  // condition
       printf("  pop rax\n");
       printf("  cmp rax, 0\n");
       printf("  je .L_for_end_%d\n", node->seq);
     }
 
-    gen(node->fourth);  // body
+    gen(get_child_at(3, node));
 
-    if (node->third != NULL) {
-      gen(node->third);  // step
+    if (get_child_at(2, node) != NULL) {
+      gen(get_child_at(2, node));  // step
     }
 
     printf("  jmp .L_for_begin_%d\n", node->seq);
@@ -102,8 +109,19 @@ void gen(Node *node) {
     return;
   }
 
-  gen(node->first);
-  gen(node->second);
+  if (node->kind == ND_BLOCK) {
+    NodeLinkedListItem *cur = node->children->head;
+    while (cur != NULL) {
+      gen(cur->node);
+      printf("  pop rax\n");
+      cur = cur->next;
+    }
+    printf("  push rax\n");
+    return;
+  }
+
+  gen(get_child_at(0, node));
+  gen(get_child_at(1, node));
 
   printf("  pop rdi\n");
   printf("  pop rax\n");
@@ -143,6 +161,5 @@ void gen(Node *node) {
       printf("  movzb rax, al\n");
       break;
   }
-
   printf("  push rax\n");
 }

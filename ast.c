@@ -15,6 +15,8 @@ LVar *find_lvar(Token *tok) {
   return NULL;
 }
 
+void init_locals() { locals = calloc(1, sizeof(LVar)); }
+
 ////////////////////////////////////
 // AST Generator
 ////////////////////////////////////
@@ -25,23 +27,24 @@ int for_stmt_seq = 0;
 Node *new_node(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
+  node->children = calloc(1, sizeof(NodeLinkedList));
+  node->children->head = NULL;
+  node->children->tail = NULL;
   return node;
 }
 
 Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = new_node(kind);
-  node->first = lhs;
-  node->second = rhs;
+  append_child(lhs, node);
+  append_child(rhs, node);
   return node;
 }
 
-Node *new_block_node(Node *condition, Node *body, Node *_else, int seq) {}
-
 Node *new_if_node(Node *condition, Node *body, Node *_else, int seq) {
   Node *node = new_node(ND_IF);
-  node->first = condition;
-  node->second = body;
-  node->third = _else;
+  append_child(condition, node);
+  append_child(body, node);
+  append_child(_else, node);
   node->seq = seq;
 
   return node;
@@ -49,8 +52,8 @@ Node *new_if_node(Node *condition, Node *body, Node *_else, int seq) {
 
 Node *new_while_node(Node *condition, Node *body, int seq) {
   Node *node = new_node(ND_WHILE);
-  node->first = condition;
-  node->second = body;
+  append_child(condition, node);
+  append_child(body, node);
   node->seq = seq;
 
   return node;
@@ -59,19 +62,19 @@ Node *new_while_node(Node *condition, Node *body, int seq) {
 Node *new_for_node(Node *initialization, Node *condition, Node *step,
                    Node *body, int seq) {
   Node *node = new_node(ND_FOR);
-  node->first = initialization;
-  node->second = condition;
-  node->third = step;
-  node->fourth = body;
+  append_child(initialization, node);
+  append_child(condition, node);
+  append_child(step, node);
+  append_child(body, node);
   node->seq = seq;
 
   return node;
 }
 
-Node *new_return_node(Node *node) {
-  Node *nd = new_node(ND_RETURN);
-  nd->first = node;
-  return nd;
+Node *new_return_node(Node *body) {
+  Node *node = new_node(ND_RETURN);
+  append_child(body, node);
+  return node;
 }
 
 Node *new_lvar_node(int offset) {
@@ -129,7 +132,7 @@ bool at_eof() { return token->kind == TK_EOF; }
 
 ////////////////////////////////////////////////
 // Syntax:
-//      program     = stmt*
+//      program     = stmt* EOF
 //      stmt        = (return)? expr ";"
 //                  | "{" stmt* "}"
 //                  | "if" "(" expr ")" stmt ("else" stmt)?
@@ -142,28 +145,33 @@ bool at_eof() { return token->kind == TK_EOF; }
 //      add         = mul ("+" mul | "-" mul)*
 //      mul         = unary ("*" unary | "/" unary)
 //      unary       = ("*" | "-")? primary
-//      primary     = num | ident | "(" expr ")"
+//      primary     = NUM | IDENT | "(" expr ")"
 ////////////////////////////////////////////////
 
-LinkedList *code;
-
 Node *program() {
-  code = new_node_list();
-
   debug("::::::start_program::::::");
-  locals = calloc(1, sizeof(LVar));
+  init_locals();
+  Node *node = new_node(ND_BLOCK);
 
   while (!at_eof()) {
-    append(code, stmt());
+    append_child(stmt(), node);
   }
+
   debug("::::::end_program::::::");
+  return node;
 }
 
 Node *stmt() {
   debug("::::::start_stmt::::::");
   Node *node;
 
-  if (consume(TK_IF)) {
+  if (consume(TK_LBRA)) {
+    debug("::stmt::block");
+    node = new_node(ND_BLOCK);
+    while (!consume(TK_RBRA)) {
+      append_child(stmt(), node);
+    }
+  } else if (consume(TK_IF)) {
     debug("::stmt::if");
     expect(TK_LPAR);
     Node *condition = expr();
@@ -215,7 +223,7 @@ Node *stmt() {
     expect(TK_PUNC);
   }
 
-  debug("::::::end_stmt::::::");
+  debug("::end_stmt::");
   return node;
 }
 
@@ -329,10 +337,11 @@ Node *primary() {
 
   Token *tok = consume_ident();
   if (tok) {
-    debug("::primary::ident");
+    debug("::primary::ident: %.*s", tok->len, tok->str);
     LVar *var = find_lvar(tok);
 
     if (!var) {
+      debug("::primary::not found");
       var = calloc(1, sizeof(LVar));
       var->next = locals;
       var->len = tok->len;
