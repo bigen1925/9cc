@@ -71,8 +71,6 @@ struct Node {
   NodeKind kind;
   NodeLinkedList *children;
   int val;
-  int offset;
-  int seq;
 };
 // Node Linked List
 struct NodeLinkedList {

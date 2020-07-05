@@ -45,7 +45,7 @@ Node *new_if_node(Node *condition, Node *body, Node *_else, int seq) {
   append_child(condition, node);
   append_child(body, node);
   append_child(_else, node);
-  node->seq = seq;
+  node->val = seq;
 
   return node;
 }
@@ -54,7 +54,7 @@ Node *new_while_node(Node *condition, Node *body, int seq) {
   Node *node = new_node(ND_WHILE);
   append_child(condition, node);
   append_child(body, node);
-  node->seq = seq;
+  node->val = seq;
 
   return node;
 }
@@ -66,7 +66,7 @@ Node *new_for_node(Node *initialization, Node *condition, Node *step,
   append_child(condition, node);
   append_child(step, node);
   append_child(body, node);
-  node->seq = seq;
+  node->val = seq;
 
   return node;
 }
@@ -79,7 +79,7 @@ Node *new_return_node(Node *body) {
 
 Node *new_lvar_node(int offset) {
   Node *node = new_node(ND_LVAR);
-  node->offset = offset;
+  node->val = offset;
   return node;
 }
 
@@ -99,7 +99,7 @@ bool consume(TokenKind kind) {
 };
 
 Token *consume_ident() {
-  if (token->kind != TK_IDENT) return false;
+  if (token->kind != TK_IDENT) return NULL;
 
   Token *tok = token;
 
@@ -145,7 +145,9 @@ bool at_eof() { return token->kind == TK_EOF; }
 //      add         = mul ("+" mul | "-" mul)*
 //      mul         = unary ("*" unary | "/" unary)
 //      unary       = ("*" | "-")? primary
-//      primary     = NUM | IDENT | "(" expr ")"
+//      primary     = num
+//                  | ident ("(" ")")?
+//                  | "(" expr ")"
 ////////////////////////////////////////////////
 
 Node *program() {
@@ -336,7 +338,12 @@ Node *primary() {
   }
 
   Token *tok = consume_ident();
-  if (tok) {
+  if (tok != NULL) {
+    // if (consume(TK_LPAR)) {
+
+    //   Node *node = new_call_node()
+    // }
+
     debug("::primary::ident: %.*s", tok->len, tok->str);
     LVar *var = find_lvar(tok);
 

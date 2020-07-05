@@ -10,7 +10,7 @@ void gen_lval(Node *node) {
   }
 
   printf("  mov rax, rbp\n");
-  printf("  sub rax, %d\n", node->offset);
+  printf("  sub rax, %d\n", node->val);
   printf("  push rax\n");
 }
 
@@ -55,32 +55,32 @@ void gen(Node *node) {
 
     printf("  pop rax\n");
     printf("  cmp rax, 0\n");
-    printf("  je .L_if_else_%d\n", node->seq);
+    printf("  je .L_if_else_%d\n", node->val);
 
     gen(get_child_at(1, node));  // body
 
-    printf("  jmp .L_if_end_%d\n", node->seq);
-    printf(".L_if_else_%d:\n", node->seq);
+    printf("  jmp .L_if_end_%d\n", node->val);
+    printf(".L_if_else_%d:\n", node->val);
 
     if (get_child_at(2, node) != NULL) gen(get_child_at(2, node));  // else
 
-    printf(".L_if_end_%d:\n", node->seq);
+    printf(".L_if_end_%d:\n", node->val);
     return;
   }
 
   if (node->kind == ND_WHILE) {
-    printf(".L_while_begin_%d:\n", node->seq);
+    printf(".L_while_begin_%d:\n", node->val);
 
     gen(get_child_at(0, node));  // condition
 
     printf("  pop rax\n");
     printf("  cmp rax, 0\n");
-    printf("  je .L_while_end_%d\n", node->seq);
+    printf("  je .L_while_end_%d\n", node->val);
 
     gen(get_child_at(1, node));  // body
 
-    printf("  jmp .L_while_begin_%d\n", node->seq);
-    printf(".L_while_end_%d:\n", node->seq);
+    printf("  jmp .L_while_begin_%d\n", node->val);
+    printf(".L_while_end_%d:\n", node->val);
     return;
   }
 
@@ -89,13 +89,13 @@ void gen(Node *node) {
       gen(get_child_at(0, node));  // initialization
     }
 
-    printf(".L_for_begin_%d:\n", node->seq);
+    printf(".L_for_begin_%d:\n", node->val);
 
     if (get_child_at(1, node) != NULL) {
       gen(get_child_at(1, node));  // condition
       printf("  pop rax\n");
       printf("  cmp rax, 0\n");
-      printf("  je .L_for_end_%d\n", node->seq);
+      printf("  je .L_for_end_%d\n", node->val);
     }
 
     gen(get_child_at(3, node));
@@ -104,8 +104,8 @@ void gen(Node *node) {
       gen(get_child_at(2, node));  // step
     }
 
-    printf("  jmp .L_for_begin_%d\n", node->seq);
-    printf(".L_for_end_%d:\n", node->seq);
+    printf("  jmp .L_for_begin_%d\n", node->val);
+    printf(".L_for_end_%d:\n", node->val);
     return;
   }
 
