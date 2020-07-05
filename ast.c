@@ -20,9 +20,7 @@ void init_locals() { locals = calloc(1, sizeof(LVar)); }
 ////////////////////////////////////
 // AST Generator
 ////////////////////////////////////
-int if_stmt_seq = 0;
-int while_stmt_seq = 0;
-int for_stmt_seq = 0;
+int seq = 0;
 
 Node *new_node(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
@@ -45,7 +43,7 @@ Node *new_if_node(Node *condition, Node *body, Node *_else, int seq) {
   append_child(condition, node);
   append_child(body, node);
   append_child(_else, node);
-  node->val = seq;
+  node->num = seq;
 
   return node;
 }
@@ -54,7 +52,7 @@ Node *new_while_node(Node *condition, Node *body, int seq) {
   Node *node = new_node(ND_WHILE);
   append_child(condition, node);
   append_child(body, node);
-  node->val = seq;
+  node->num = seq;
 
   return node;
 }
@@ -66,7 +64,7 @@ Node *new_for_node(Node *initialization, Node *condition, Node *step,
   append_child(condition, node);
   append_child(step, node);
   append_child(body, node);
-  node->val = seq;
+  node->num = seq;
 
   return node;
 }
@@ -79,13 +77,19 @@ Node *new_return_node(Node *body) {
 
 Node *new_lvar_node(int offset) {
   Node *node = new_node(ND_LVAR);
-  node->val = offset;
+  node->num = offset;
   return node;
+}
+
+Node *new_call_node(char *str, int len) {
+  Node *node = new_node(ND_CALL);
+  node->str = str;
+  node->num = len;
 }
 
 Node *new_number_node(int val) {
   Node *node = new_node(ND_NUM);
-  node->val = val;
+  node->num = val;
   return node;
 }
 
@@ -185,7 +189,7 @@ Node *stmt() {
       _else = stmt();
     }
 
-    node = new_if_node(condition, body, _else, if_stmt_seq++);
+    node = new_if_node(condition, body, _else, seq++);
   } else if (consume(TK_WHILE)) {
     debug("::stmt::while");
     expect(TK_LPAR);
@@ -193,7 +197,7 @@ Node *stmt() {
     expect(TK_RPAR);
     Node *body = stmt();
 
-    node = new_while_node(condition, body, while_stmt_seq++);
+    node = new_while_node(condition, body, seq++);
   } else if (consume(TK_FOR)) {
     debug("::stmt::for");
     expect(TK_LPAR);
@@ -214,7 +218,7 @@ Node *stmt() {
     }
     Node *body = stmt();
 
-    node = new_for_node(initialization, condition, step, body, for_stmt_seq++);
+    node = new_for_node(initialization, condition, step, body, seq++);
   } else {
     if (consume(TK_RETURN)) {
       debug("::stmt::return");
@@ -339,10 +343,15 @@ Node *primary() {
 
   Token *tok = consume_ident();
   if (tok != NULL) {
-    // if (consume(TK_LPAR)) {
+    if (consume(TK_LPAR)) {
+      debug("::primary::call: %.*s", tok->len, tok->str);
 
-    //   Node *node = new_call_node()
-    // }
+      Node *node = new_call_node(tok->str, tok->len);
+      expect(TK_RPAR);
+
+      debug("::::::end_primary::::::");
+      return node;
+    }
 
     debug("::primary::ident: %.*s", tok->len, tok->str);
     LVar *var = find_lvar(tok);

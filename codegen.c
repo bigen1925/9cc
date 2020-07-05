@@ -10,14 +10,14 @@ void gen_lval(Node *node) {
   }
 
   printf("  mov rax, rbp\n");
-  printf("  sub rax, %d\n", node->val);
+  printf("  sub rax, %d\n", node->num);
   printf("  push rax\n");
 }
 
 void gen(Node *node) {
   debug("::::::generate::kind -> %d", node->kind);
   if (node->kind == ND_NUM) {
-    printf("  push %d \n", node->val);
+    printf("  push %d \n", node->num);
     return;
   }
 
@@ -26,6 +26,11 @@ void gen(Node *node) {
     printf("  pop rax\n");
     printf("  mov rax, [rax]\n");
     printf("  push rax\n");
+    return;
+  }
+
+  if (node->kind == ND_CALL) {
+    printf("  call %.*s\n", node->num, node->str);
     return;
   }
 
@@ -55,32 +60,32 @@ void gen(Node *node) {
 
     printf("  pop rax\n");
     printf("  cmp rax, 0\n");
-    printf("  je .L_if_else_%d\n", node->val);
+    printf("  je .L_if_else_%d\n", node->num);
 
     gen(get_child_at(1, node));  // body
 
-    printf("  jmp .L_if_end_%d\n", node->val);
-    printf(".L_if_else_%d:\n", node->val);
+    printf("  jmp .L_if_end_%d\n", node->num);
+    printf(".L_if_else_%d:\n", node->num);
 
     if (get_child_at(2, node) != NULL) gen(get_child_at(2, node));  // else
 
-    printf(".L_if_end_%d:\n", node->val);
+    printf(".L_if_end_%d:\n", node->num);
     return;
   }
 
   if (node->kind == ND_WHILE) {
-    printf(".L_while_begin_%d:\n", node->val);
+    printf(".L_while_begin_%d:\n", node->num);
 
     gen(get_child_at(0, node));  // condition
 
     printf("  pop rax\n");
     printf("  cmp rax, 0\n");
-    printf("  je .L_while_end_%d\n", node->val);
+    printf("  je .L_while_end_%d\n", node->num);
 
     gen(get_child_at(1, node));  // body
 
-    printf("  jmp .L_while_begin_%d\n", node->val);
-    printf(".L_while_end_%d:\n", node->val);
+    printf("  jmp .L_while_begin_%d\n", node->num);
+    printf(".L_while_end_%d:\n", node->num);
     return;
   }
 
@@ -89,13 +94,13 @@ void gen(Node *node) {
       gen(get_child_at(0, node));  // initialization
     }
 
-    printf(".L_for_begin_%d:\n", node->val);
+    printf(".L_for_begin_%d:\n", node->num);
 
     if (get_child_at(1, node) != NULL) {
       gen(get_child_at(1, node));  // condition
       printf("  pop rax\n");
       printf("  cmp rax, 0\n");
-      printf("  je .L_for_end_%d\n", node->val);
+      printf("  je .L_for_end_%d\n", node->num);
     }
 
     gen(get_child_at(3, node));
@@ -104,8 +109,8 @@ void gen(Node *node) {
       gen(get_child_at(2, node));  // step
     }
 
-    printf("  jmp .L_for_begin_%d\n", node->val);
-    printf(".L_for_end_%d:\n", node->val);
+    printf("  jmp .L_for_begin_%d\n", node->num);
+    printf(".L_for_end_%d:\n", node->num);
     return;
   }
 

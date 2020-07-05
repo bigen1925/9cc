@@ -59,6 +59,7 @@ typedef enum {
   ND_WHILE,   // while
   ND_FOR,     // for
   ND_LVAR,    // Local Variable
+  ND_CALL,    // Function Call
   ND_NUM,     // Number
   ND_RETURN,  // return
 } NodeKind;
@@ -70,7 +71,8 @@ typedef struct NodeLinkedListItem NodeLinkedListItem;
 struct Node {
   NodeKind kind;
   NodeLinkedList *children;
-  int val;
+  int num;
+  char *str;
 };
 // Node Linked List
 struct NodeLinkedList {

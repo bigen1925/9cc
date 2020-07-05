@@ -4,7 +4,7 @@ assert() {
     input="$2"
     
     ./9cc "${input}" "${debug_mode}" > tmp.s
-    cc -o tmp tmp.s
+    cc -o tmp tmp.s func.c
     ./tmp
     
     actual="$?"
@@ -114,6 +114,11 @@ for (;;) {
         return foo + bar;
     }
 }
+"
+
+assert 10 "
+foo();
+return 10;
 "
 
 echo "OK"
