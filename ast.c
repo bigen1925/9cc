@@ -345,9 +345,16 @@ Node *primary() {
   if (tok != NULL) {
     if (consume(TK_LPAR)) {
       debug("::primary::call: %.*s", tok->len, tok->str);
-
       Node *node = new_call_node(tok->str, tok->len);
-      expect(TK_RPAR);
+
+      if (!consume(TK_RPAR)) {
+        append_child(expr(), node);
+
+        while (!consume(TK_RPAR)) {
+          expect(TK_COMMA);
+          append_child(expr(), node);
+        }
+      }
 
       debug("::::::end_primary::::::");
       return node;

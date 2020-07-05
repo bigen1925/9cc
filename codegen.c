@@ -4,6 +4,28 @@
 // Code Generator
 ////////////////////////////////////
 
+void gen_argument(Node *node) {
+  NodeLinkedListItem *cur = node->children->head;
+  if (cur == NULL) return;
+  gen(cur->node);
+  printf("  pop rdi\n");
+  cur = cur->next;
+
+  if (cur == NULL) return;
+  gen(cur->node);
+  printf("  pop rsi\n");
+  cur = cur->next;
+
+  if (cur == NULL) return;
+  gen(cur->node);
+  printf("  pop rdx\n");
+  cur = cur->next;
+
+  if (cur == NULL) return;
+  gen(cur->node);
+  printf("  pop rcx\n");
+}
+
 void gen_lval(Node *node) {
   if (node->kind != ND_LVAR) {
     error("left value of assignment is not local variable.");
@@ -30,7 +52,9 @@ void gen(Node *node) {
   }
 
   if (node->kind == ND_CALL) {
+    gen_argument(node);
     printf("  call %.*s\n", node->num, node->str);
+    printf("  push rax\n");
     return;
   }
 

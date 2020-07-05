@@ -1,4 +1,8 @@
 #include "9cc.h"
 
 int foo() { printf("OK\n"); }
-int bar(int x, int y) { printf("my_func called. -> %d\n", x + y); }
+int bar(int x, int y) {
+  int z = x + y;
+  printf("bar() called. -> %d\n", z);
+  return z;
+}

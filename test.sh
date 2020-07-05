@@ -121,4 +121,8 @@ foo();
 return 10;
 "
 
+assert 10 "
+return bar(3, 7);
+"
+
 echo "OK"

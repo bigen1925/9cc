@@ -106,6 +106,10 @@ Token *tokenize() {
       cur = new_token(TK_RPAR, cur, p++, 1);
       continue;
     }
+    if (startswith(p, ",")) {
+      cur = new_token(TK_COMMA, cur, p++, 1);
+      continue;
+    }
     if (startswith(p, ";")) {
       cur = new_token(TK_PUNC, cur, p++, 1);
       continue;

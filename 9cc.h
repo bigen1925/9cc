@@ -22,6 +22,7 @@ typedef enum {
   TK_RPAR,    // ")"
   TK_LBRA,    // "{"
   TK_RBRA,    // "}"
+  TK_COMMA,   // ","
   TK_PUNC,    // ";"
   TK_RETURN,  // "return"
   TK_IF,      // "if"
