@@ -4,7 +4,7 @@
 // Code Generator
 ////////////////////////////////////
 
-void gen_argument(Node *node) {
+void gen_set_parameters(Node *node) {
   NodeLinkedListItem *cur = node->children->head;
   if (cur == NULL) return;
   gen(cur->node);
@@ -26,6 +26,33 @@ void gen_argument(Node *node) {
   printf("  pop rcx\n");
 }
 
+void gen_assign_arguments(Node *node) {
+  NodeLinkedListItem *cur = node->children->head->next;
+  if (!cur) return;
+  printf("  mov rax, rbp\n");
+  printf("  sub rax, %d\n", cur->node->num);
+  printf("  mov [rax], rdi\n");
+  cur = cur->next;
+
+  if (!cur) return;
+  printf("  mov rax, rbp\n");
+  printf("  sub rax, %d\n", cur->node->num);
+  printf("  mov [rax], rsi\n");
+  cur = cur->next;
+
+  if (!cur) return;
+  printf("  mov rax, rbp\n");
+  printf("  sub rax, %d\n", cur->node->num);
+  printf("  mov [rax], rdx\n");
+  cur = cur->next;
+
+  if (!cur) return;
+  printf("  mov rax, rbp\n");
+  printf("  sub rax, %d\n", cur->node->num);
+  printf("  mov [rax], rcx\n");
+  cur = cur->next;
+}
+
 void gen_lval(Node *node) {
   if (node->kind != ND_LVAR) {
     error("left value of assignment is not local variable.");
@@ -37,7 +64,7 @@ void gen_lval(Node *node) {
 }
 
 void gen(Node *node) {
-  debug("::::::generate::kind -> %d", node->kind);
+  debug(";;;;generate::kind -> %d", node->kind);
   if (node->kind == ND_NUM) {
     printf("  push %d \n", node->num);
     return;
@@ -52,7 +79,7 @@ void gen(Node *node) {
   }
 
   if (node->kind == ND_CALL) {
-    gen_argument(node);
+    gen_set_parameters(node);
     printf("  call %.*s\n", node->num, node->str);
     printf("  push rax\n");
     return;
@@ -146,6 +173,41 @@ void gen(Node *node) {
       cur = cur->next;
     }
     printf("  push rax\n");
+    return;
+  }
+
+  if (node->kind == ND_PROGRAM) {
+    // generate header codes
+    printf(".intel_syntax noprefix\n");
+    printf(".globl main\n");
+
+    NodeLinkedListItem *cur = node->children->head;
+    for (; cur != NULL; cur = cur->next) {
+      gen(cur->node);
+    }
+    return;
+  }
+
+  if (node->kind == ND_FUNC) {
+    // label
+    printf("%.*s:\n", node->num, node->str);
+    // prologue
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n");
+    printf("  sub rsp, 208\n");
+
+    // assign arguments
+    gen_assign_arguments(node);
+
+    // body
+    debug("hogehoge:::->%d", get_child_at(0, node)->kind);
+    gen(get_child_at(0, node));
+    printf("  pop rax\n");
+
+    // epilogue
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
+    printf("  ret\n");
     return;
   }
 

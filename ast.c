@@ -15,6 +15,22 @@ LVar *find_lvar(Token *tok) {
   return NULL;
 }
 
+LVar *get_or_create_lvar(Token *tok) {
+  LVar *var = find_lvar(tok);
+
+  if (!var) {
+    debug("::primary::not found");
+    var = calloc(1, sizeof(LVar));
+    var->next = locals;
+    var->len = tok->len;
+    var->name = tok->str;
+    var->offset = locals->offset + 8;
+    locals = var;
+  }
+
+  return var;
+}
+
 void init_locals() { locals = calloc(1, sizeof(LVar)); }
 
 ////////////////////////////////////
@@ -75,9 +91,24 @@ Node *new_return_node(Node *body) {
   return node;
 }
 
-Node *new_lvar_node(int offset) {
+Node *new_function_node(char *str, int len) {
+  Node *node = new_node(ND_FUNC);
+  node->str = str;
+  node->num = len;
+  return node;
+}
+
+Node *new_arg_node(Token *tok) {
+  LVar *var = get_or_create_lvar(tok);
+  Node *node = new_node(ND_ARG);
+  node->num = var->offset;
+  return node;
+}
+
+Node *new_lvar_node(Token *tok) {
+  LVar *var = get_or_create_lvar(tok);
   Node *node = new_node(ND_LVAR);
-  node->num = offset;
+  node->num = var->offset;
   return node;
 }
 
@@ -128,20 +159,35 @@ int expect_number() {
 
   int val = token->val;
   token = token->next;
-  debug("::expected_number:: %d", val);
   return val;
 }
+
+Token *expect_ident() {
+  if (token->kind != TK_IDENT) error_at(token->str, "expected an ident.");
+
+  Token *tok = token;
+  token = token->next;
+  return tok;
+}
+
+// check a kind of next token
+bool lookahead(TokenKind kind) { return token->kind == kind; }
 
 bool at_eof() { return token->kind == TK_EOF; }
 
 ////////////////////////////////////////////////
 // Syntax:
-//      program     = stmt* EOF
-//      stmt        = (return)? expr ";"
-//                  | "{" stmt* "}"
-//                  | "if" "(" expr ")" stmt ("else" stmt)?
-//                  | "while" "(" expr ")" stmt
-//                  | "for" "(" expr? ";" expr? ";" expr? ";" ")" stmt
+//      program     = function* EOF
+//      function    = ident "(" (expr ("," expr)*)? ")" block
+//      stmt        = block
+//                  | if
+//                  | while
+//                  | for
+//                  | (return)? expr ";"
+//      block       = "{" stmt* "}"
+//      if          = "if" "(" expr ")" stmt ("else" stmt)?
+//      whilw       = "while" "(" expr ")" stmt
+//      for         = "for" "(" expr? ";" expr? ";" expr? ";" ")" stmt
 //      expr        = assign
 //      assign      = equality ("=" assign)?
 //      qeuality    = relational ("==" ralational | "!=" relational)*
@@ -150,20 +196,45 @@ bool at_eof() { return token->kind == TK_EOF; }
 //      mul         = unary ("*" unary | "/" unary)
 //      unary       = ("*" | "-")? primary
 //      primary     = num
-//                  | ident ("(" ")")?
+//                  | ident ("(" (expr ("," expr)*)? ")")?
 //                  | "(" expr ")"
 ////////////////////////////////////////////////
 
 Node *program() {
   debug("::::::start_program::::::");
   init_locals();
-  Node *node = new_node(ND_BLOCK);
+  Node *node = new_node(ND_PROGRAM);
 
   while (!at_eof()) {
-    append_child(stmt(), node);
+    append_child(function(), node);
   }
 
   debug("::::::end_program::::::");
+  return node;
+}
+
+Node *function() {
+  debug("::::::start_function::::::");
+  Token *tok = expect_ident();
+  expect(TK_LPAR);
+
+  Node *node = new_function_node(tok->str, tok->len);
+
+  if (!consume(TK_RPAR)) {
+    tok = expect_ident();
+    append_child(new_arg_node(tok), node);
+
+    while (consume(TK_COMMA)) {
+      tok = expect_ident();
+      append_child(new_arg_node(tok), node);
+    }
+
+    expect(TK_RPAR);
+  }
+
+  append_child_head(block(), node);
+
+  debug("::::::end_function::::::");
   return node;
 }
 
@@ -171,66 +242,97 @@ Node *stmt() {
   debug("::::::start_stmt::::::");
   Node *node;
 
-  if (consume(TK_LBRA)) {
-    debug("::stmt::block");
-    node = new_node(ND_BLOCK);
-    while (!consume(TK_RBRA)) {
-      append_child(stmt(), node);
-    }
-  } else if (consume(TK_IF)) {
-    debug("::stmt::if");
-    expect(TK_LPAR);
-    Node *condition = expr();
-    expect(TK_RPAR);
-    Node *body = stmt();
-    Node *_else = NULL;
-    if (consume(TK_ELSE)) {
-      debug("::stmt::else");
-      _else = stmt();
-    }
-
-    node = new_if_node(condition, body, _else, seq++);
-  } else if (consume(TK_WHILE)) {
-    debug("::stmt::while");
-    expect(TK_LPAR);
-    Node *condition = expr();
-    expect(TK_RPAR);
-    Node *body = stmt();
-
-    node = new_while_node(condition, body, seq++);
-  } else if (consume(TK_FOR)) {
-    debug("::stmt::for");
-    expect(TK_LPAR);
-    Node *initialization = NULL;
-    Node *condition = NULL;
-    Node *step = NULL;
-    if (!consume(TK_PUNC)) {
-      initialization = expr();
-      expect(TK_PUNC);
-    }
-    if (!consume(TK_PUNC)) {
-      condition = expr();
-      expect(TK_PUNC);
-    }
-    if (!consume(TK_RPAR)) {
-      step = expr();
-      expect(TK_RPAR);
-    }
-    Node *body = stmt();
-
-    node = new_for_node(initialization, condition, step, body, seq++);
+  if (lookahead(TK_LBRA)) {
+    node = block();
+  } else if (lookahead(TK_IF)) {
+    node = if_ast();
+  } else if (lookahead(TK_WHILE)) {
+    node = while_ast();
+  } else if (lookahead(TK_FOR)) {
+    node = for_ast();
   } else {
     if (consume(TK_RETURN)) {
       debug("::stmt::return");
       node = new_return_node(expr());
     } else {
+      debug("::stmt::expr");
       node = expr();
     }
     expect(TK_PUNC);
   }
 
-  debug("::end_stmt::");
+  debug("::::::end_stmt::::::");
   return node;
+}
+
+Node *block() {
+  debug("::::::start_block::::::");
+
+  expect(TK_LBRA);
+  Node *node = new_node(ND_BLOCK);
+  while (!consume(TK_RBRA)) {
+    append_child(stmt(), node);
+  }
+
+  debug("::::::end_block::::::");
+  return node;
+}
+
+Node *if_ast() {
+  debug("::::::start_if::::::");
+
+  expect(TK_IF);
+  expect(TK_LPAR);
+  Node *condition = expr();
+  expect(TK_RPAR);
+  Node *body = stmt();
+  Node *_else = NULL;
+  if (consume(TK_ELSE)) {
+    debug("::stmt::else");
+    _else = stmt();
+  }
+
+  debug("::::::end_if::::::");
+  return new_if_node(condition, body, _else, seq++);
+}
+
+Node *while_ast() {
+  debug("::::::start_while::::::");
+
+  expect(TK_WHILE);
+  expect(TK_LPAR);
+  Node *condition = expr();
+  expect(TK_RPAR);
+  Node *body = stmt();
+
+  debug("::::::end_while::::::");
+  return new_while_node(condition, body, seq++);
+}
+
+Node *for_ast() {
+  debug("::::::start_for::::::");
+
+  expect(TK_FOR);
+  expect(TK_LPAR);
+  Node *initialization = NULL;
+  Node *condition = NULL;
+  Node *step = NULL;
+  if (!consume(TK_PUNC)) {
+    initialization = expr();
+    expect(TK_PUNC);
+  }
+  if (!consume(TK_PUNC)) {
+    condition = expr();
+    expect(TK_PUNC);
+  }
+  if (!consume(TK_RPAR)) {
+    step = expr();
+    expect(TK_RPAR);
+  }
+  Node *body = stmt();
+
+  debug("::::::end_for::::::");
+  return new_for_node(initialization, condition, step, body, seq++);
 }
 
 Node *expr() {
@@ -342,8 +444,9 @@ Node *primary() {
   }
 
   Token *tok = consume_ident();
-  if (tok != NULL) {
+  if (tok) {
     if (consume(TK_LPAR)) {
+      // function call
       debug("::primary::call: %.*s", tok->len, tok->str);
       Node *node = new_call_node(tok->str, tok->len);
 
@@ -360,20 +463,9 @@ Node *primary() {
       return node;
     }
 
-    debug("::primary::ident: %.*s", tok->len, tok->str);
-    LVar *var = find_lvar(tok);
-
-    if (!var) {
-      debug("::primary::not found");
-      var = calloc(1, sizeof(LVar));
-      var->next = locals;
-      var->len = tok->len;
-      var->name = tok->str;
-      var->offset = locals->offset + 8;
-      locals = var;
-    }
-    Node *node = new_lvar_node(var->offset);
-
+    // local variable
+    debug("::primary::local_variable: %.*s", tok->len, tok->str);
+    Node *node = new_lvar_node(tok);
     debug("::::::end_primary::::::");
     return node;
   }

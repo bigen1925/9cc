@@ -32,25 +32,9 @@ int main(int argc, char **argv) {
   Node *node = program();
   debug("\n::::::end_AST::::::\n");
 
-  // generate header codes
-  printf(".intel_syntax noprefix\n");
-  printf(".globl main\n");
-  printf("main:\n");
-
-  // prologue
-  printf("  push rbp\n");
-  printf("  mov rbp, rsp\n");
-  printf("  sub rsp, 208\n");
-
-  // generate codes form a syntax tree
   debug("\n::::::start_code_generation::::::");
   gen(node);
-  printf("  pop rax\n");
   debug("\n::::::end_code_generation::::::");
 
-  // epilogue
-  printf("  mov rsp, rbp\n");
-  printf("  pop rbp\n");
-  printf("  ret\n");
   return 0;
 }

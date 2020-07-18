@@ -46,23 +46,26 @@ struct Token {
 
 // Node Kind
 typedef enum {
-  ND_ADD,     // +
-  ND_SUB,     // -
-  ND_MUL,     // *
-  ND_DIV,     // /
-  ND_EQ,      // ==
-  ND_NE,      // !=
-  ND_LT,      // <
-  ND_LTE,     // <=
-  ND_ASSIGN,  // =
-  ND_BLOCK,   // {~}
-  ND_IF,      // if
-  ND_WHILE,   // while
-  ND_FOR,     // for
-  ND_LVAR,    // Local Variable
-  ND_CALL,    // Function Call
-  ND_NUM,     // Number
-  ND_RETURN,  // return
+  ND_ADD,      // +
+  ND_SUB,      // -
+  ND_MUL,      // *
+  ND_DIV,      // /
+  ND_EQ,       // ==
+  ND_NE,       // !=
+  ND_LT,       // <
+  ND_LTE,      // <=
+  ND_ASSIGN,   // =
+  ND_BLOCK,    // {~}
+  ND_IF,       // if
+  ND_WHILE,    // while
+  ND_FOR,      // for
+  ND_LVAR,     // Local Variable
+  ND_CALL,     // Function Call
+  ND_NUM,      // Number
+  ND_RETURN,   // return
+  ND_PROGRAM,  // whole program
+  ND_FUNC,     // function definitions
+  ND_ARG,      // arguments
 } NodeKind;
 
 // Node Type
@@ -89,6 +92,7 @@ struct NodeLinkedListItem {
 void append(Node *node, NodeLinkedList *list);
 Node *get_at(int n, NodeLinkedList *list);
 void append_child(Node *child, Node *parent);
+void append_child_head(Node *child, Node *parent);
 Node *get_child_at(int n, Node *node);
 
 extern char *user_input;
@@ -102,9 +106,14 @@ Token *tokenize();
 void gen(Node *node);
 
 Node *program();
+Node *function();
 Node *stmt();
-Node *assign();
+Node *block();
+Node *if_ast();
+Node *while_ast();
+Node *for_ast();
 Node *expr();
+Node *assign();
 Node *equality();
 Node *relational();
 Node *add();
