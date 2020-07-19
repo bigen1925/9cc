@@ -59,11 +59,15 @@ Token *tokenize() {
       continue;
     }
     if (startswith(p, "*")) {
-      cur = new_token(TK_MUL, cur, p++, 1);
+      cur = new_token(TK_AST, cur, p++, 1);
       continue;
     }
     if (startswith(p, "/")) {
       cur = new_token(TK_DIV, cur, p++, 1);
+      continue;
+    }
+    if (startswith(p, "&")) {
+      cur = new_token(TK_AMP, cur, p++, 1);
       continue;
     }
     if (startswith(p, "==")) {
@@ -144,6 +148,11 @@ Token *tokenize() {
     }
     if ((strncmp(p, "for", 3) == 0) && !is_alnum(p[3])) {
       cur = new_token(TK_FOR, cur, p, 3);
+      p += 3;
+      continue;
+    }
+    if ((strncmp(p, "int", 3) == 0) && !is_alnum(p[3])) {
+      cur = new_token(TK_TYPE, cur, p, 3);
       p += 3;
       continue;
     }

@@ -9,8 +9,9 @@
 typedef enum {
   TK_ADD,     // "+"
   TK_SUB,     // "-"
-  TK_MUL,     // "*"
+  TK_AST,     // "*"
   TK_DIV,     // "/"
+  TK_AMP,     // "&"
   TK_EQ,      // "=="
   TK_NEQ,     // "!="
   TK_LT,      // "<"
@@ -29,6 +30,7 @@ typedef enum {
   TK_ELSE,    // "else"
   TK_WHILE,   // "while"
   TK_FOR,     // "for"
+  TK_TYPE,    // "int"
   TK_IDENT,   // <identifier>
   TK_NUM,     // <integer literal>
   TK_EOF,     // End-of-file markers
@@ -48,8 +50,10 @@ struct Token {
 typedef enum {
   ND_ADD,      // +
   ND_SUB,      // -
-  ND_MUL,      // *
+  ND_MUL,      // * (multiply)
   ND_DIV,      // /
+  ND_ADDR,     // * (address)
+  ND_DEREF,    // & (dereference)
   ND_EQ,       // ==
   ND_NE,       // !=
   ND_LT,       // <
@@ -65,6 +69,7 @@ typedef enum {
   ND_RETURN,   // return
   ND_PROGRAM,  // whole program
   ND_FUNC,     // function definitions
+  ND_VAR_DEC,  // variable declaration
   ND_ARG,      // arguments
 } NodeKind;
 
@@ -112,6 +117,7 @@ Node *block();
 Node *if_ast();
 Node *while_ast();
 Node *for_ast();
+Node *var_dec();
 Node *expr();
 Node *assign();
 Node *equality();

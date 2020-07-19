@@ -166,8 +166,11 @@ void gen(Node *node) {
   }
 
   if (node->kind == ND_BLOCK) {
+    debug("hoge:::::::");
     NodeLinkedListItem *cur = node->children->head;
     while (cur != NULL) {
+      debug("fuga:::::::");
+
       gen(cur->node);
       printf("  pop rax\n");
       cur = cur->next;
@@ -200,7 +203,6 @@ void gen(Node *node) {
     gen_assign_arguments(node);
 
     // body
-    debug("hogehoge:::->%d", get_child_at(0, node)->kind);
     gen(get_child_at(0, node));
     printf("  pop rax\n");
 
@@ -208,6 +210,24 @@ void gen(Node *node) {
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
     printf("  ret\n");
+    return;
+  }
+
+  if (node->kind == ND_VAR_DEC) {
+    printf("  push 0\n");  // for convinience, push a dummy value.
+    return;
+  }
+
+  if (node->kind == ND_ADDR) {
+    gen_lval(get_child_at(0, node));
+    return;
+  }
+
+  if (node->kind == ND_DEREF) {
+    gen(get_child_at(0, node));    // generate an address
+    printf("  pop rax\n");         // pop an address
+    printf("  mov rax, [rax]\n");  // get a value on an address
+    printf("  push rax\n");        // push a value
     return;
   }
 

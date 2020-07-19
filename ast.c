@@ -15,17 +15,31 @@ LVar *find_lvar(Token *tok) {
   return NULL;
 }
 
-LVar *get_or_create_lvar(Token *tok) {
+LVar *create_lvar(Token *tok) {
+  LVar *var = calloc(1, sizeof(LVar));
+  var->next = locals;
+  var->len = tok->len;
+  var->name = tok->str;
+  var->offset = locals->offset + 8;
+  locals = var;
+
+  return var;
+}
+
+LVar *create_lvar_or_fail(Token *tok) {
+  LVar *var = find_lvar(tok);
+
+  if (var) {
+    error("redeclaration of a variable '%.*s' .", tok->len, tok->str);
+  }
+
+  return create_lvar(tok);
+}
+LVar *get_lvar_or_fail(Token *tok) {
   LVar *var = find_lvar(tok);
 
   if (!var) {
-    debug("::primary::not found");
-    var = calloc(1, sizeof(LVar));
-    var->next = locals;
-    var->len = tok->len;
-    var->name = tok->str;
-    var->offset = locals->offset + 8;
-    locals = var;
+    error("a variable '%.*s' is not declared.", tok->len, tok->str);
   }
 
   return var;
@@ -44,6 +58,12 @@ Node *new_node(NodeKind kind) {
   node->children = calloc(1, sizeof(NodeLinkedList));
   node->children->head = NULL;
   node->children->tail = NULL;
+  return node;
+}
+
+Node *new_unary_node(NodeKind kind, Node *operand) {
+  Node *node = new_node(kind);
+  append_child(operand, node);
   return node;
 }
 
@@ -99,14 +119,14 @@ Node *new_function_node(char *str, int len) {
 }
 
 Node *new_arg_node(Token *tok) {
-  LVar *var = get_or_create_lvar(tok);
+  LVar *var = create_lvar_or_fail(tok);
   Node *node = new_node(ND_ARG);
   node->num = var->offset;
   return node;
 }
 
 Node *new_lvar_node(Token *tok) {
-  LVar *var = get_or_create_lvar(tok);
+  LVar *var = get_lvar_or_fail(tok);
   Node *node = new_node(ND_LVAR);
   node->num = var->offset;
   return node;
@@ -170,6 +190,14 @@ Token *expect_ident() {
   return tok;
 }
 
+Token *expect_type() {
+  if (token->kind != TK_TYPE) error_at(token->str, "expected an ident.");
+
+  Token *tok = token;
+  token = token->next;
+  return tok;
+}
+
 // check a kind of next token
 bool lookahead(TokenKind kind) { return token->kind == kind; }
 
@@ -183,25 +211,28 @@ bool at_eof() { return token->kind == TK_EOF; }
 //                  | if
 //                  | while
 //                  | for
+//                  | var_dec
 //                  | (return)? expr ";"
 //      block       = "{" stmt* "}"
 //      if          = "if" "(" expr ")" stmt ("else" stmt)?
-//      whilw       = "while" "(" expr ")" stmt
+//      while       = "while" "(" expr ")" stmt
 //      for         = "for" "(" expr? ";" expr? ";" expr? ";" ")" stmt
+//      var_dec     = type ident ";"
 //      expr        = assign
 //      assign      = equality ("=" assign)?
 //      qeuality    = relational ("==" ralational | "!=" relational)*
 //      relational  = add ("<" add | "<=" add | ">" add | ">= add")*
 //      add         = mul ("+" mul | "-" mul)*
 //      mul         = unary ("*" unary | "/" unary)
-//      unary       = ("*" | "-")? primary
+//      unary       = ("+" | "-")? primary
+//                  | ("*" | "&") unary
 //      primary     = num
 //                  | ident ("(" (expr ("," expr)*)? ")")?
 //                  | "(" expr ")"
 ////////////////////////////////////////////////
 
 Node *program() {
-  debug("::::::start_program::::::");
+  debug("::::::start program::::::");
   init_locals();
   Node *node = new_node(ND_PROGRAM);
 
@@ -209,12 +240,12 @@ Node *program() {
     append_child(function(), node);
   }
 
-  debug("::::::end_program::::::");
+  debug("::::::end program::::::");
   return node;
 }
 
 Node *function() {
-  debug("::::::start_function::::::");
+  debug("::::::start function::::::");
   Token *tok = expect_ident();
   expect(TK_LPAR);
 
@@ -234,12 +265,12 @@ Node *function() {
 
   append_child_head(block(), node);
 
-  debug("::::::end_function::::::");
+  debug("::::::end function::::::");
   return node;
 }
 
 Node *stmt() {
-  debug("::::::start_stmt::::::");
+  debug("::::::start stmt::::::");
   Node *node;
 
   if (lookahead(TK_LBRA)) {
@@ -250,6 +281,8 @@ Node *stmt() {
     node = while_ast();
   } else if (lookahead(TK_FOR)) {
     node = for_ast();
+  } else if (lookahead(TK_TYPE)) {
+    node = var_dec();
   } else {
     if (consume(TK_RETURN)) {
       debug("::stmt::return");
@@ -261,12 +294,12 @@ Node *stmt() {
     expect(TK_PUNC);
   }
 
-  debug("::::::end_stmt::::::");
+  debug("::::::end stmt::::::");
   return node;
 }
 
 Node *block() {
-  debug("::::::start_block::::::");
+  debug("::::::start block::::::");
 
   expect(TK_LBRA);
   Node *node = new_node(ND_BLOCK);
@@ -274,12 +307,12 @@ Node *block() {
     append_child(stmt(), node);
   }
 
-  debug("::::::end_block::::::");
+  debug("::::::end block::::::");
   return node;
 }
 
 Node *if_ast() {
-  debug("::::::start_if::::::");
+  debug("::::::start if::::::");
 
   expect(TK_IF);
   expect(TK_LPAR);
@@ -292,12 +325,12 @@ Node *if_ast() {
     _else = stmt();
   }
 
-  debug("::::::end_if::::::");
+  debug("::::::end if::::::");
   return new_if_node(condition, body, _else, seq++);
 }
 
 Node *while_ast() {
-  debug("::::::start_while::::::");
+  debug("::::::start while::::::");
 
   expect(TK_WHILE);
   expect(TK_LPAR);
@@ -305,12 +338,12 @@ Node *while_ast() {
   expect(TK_RPAR);
   Node *body = stmt();
 
-  debug("::::::end_while::::::");
+  debug("::::::end while::::::");
   return new_while_node(condition, body, seq++);
 }
 
 Node *for_ast() {
-  debug("::::::start_for::::::");
+  debug("::::::start for::::::");
 
   expect(TK_FOR);
   expect(TK_LPAR);
@@ -331,30 +364,48 @@ Node *for_ast() {
   }
   Node *body = stmt();
 
-  debug("::::::end_for::::::");
+  debug("::::::end for::::::");
   return new_for_node(initialization, condition, step, body, seq++);
 }
 
+Node *var_dec() {
+  debug("::::::start var_dec::::::");
+
+  Token *tok = expect_type();
+  if (!strncmp(tok->str, "int", 3)) {
+    tok = expect_ident();
+    LVar *var = create_lvar_or_fail(tok);
+  }
+  expect(TK_PUNC);
+
+  debug("::::::end var_dec::::::");
+  return new_node(ND_VAR_DEC);
+}
+
 Node *expr() {
-  debug("::::::start_expr::::::");
+  debug("::::::start expr::::::");
+
   Node *node = assign();
 
-  debug("::::::end_expr::::::");
+  debug("::::::end expr::::::");
   return node;
 }
 
 Node *assign() {
-  debug("::::::start_assign::::::");
+  debug("::::::start assign::::::");
+
   Node *node = equality();
   if (consume(TK_ASSIGN)) {
     node = new_binary_node(ND_ASSIGN, node, assign());
   }
-  debug("::::::end_assign::::::");
+
+  debug("::::::end assign::::::");
   return node;
 }
 
 Node *equality() {
-  debug("::::::start_equality::::::");
+  debug("::::::start equality::::::");
+
   Node *node = relational();
 
   for (;;) {
@@ -363,14 +414,14 @@ Node *equality() {
     } else if (consume(TK_NEQ)) {
       node = new_binary_node(ND_NE, node, relational());
     } else {
-      debug("::::::end_equality::::::");
+      debug("::::::end equality::::::");
       return node;
     }
   }
 }
 
 Node *relational() {
-  debug("::::::start_relational::::::");
+  debug("::::::start relational::::::");
   Node *node = add();
 
   for (;;) {
@@ -383,14 +434,14 @@ Node *relational() {
     } else if (consume(TK_GTE)) {
       node = new_binary_node(ND_LTE, add(), node);
     } else {
-      debug("::::::end_relational::::::");
+      debug("::::::end relational::::::");
       return node;
     }
   }
 }
 
 Node *add() {
-  debug("::::::start_add::::::");
+  debug("::::::start add::::::");
   Node *node = mul();
 
   for (;;) {
@@ -399,47 +450,53 @@ Node *add() {
     } else if (consume(TK_SUB)) {
       node = new_binary_node(ND_SUB, node, mul());
     } else {
-      debug("::::::end_add::::::");
+      debug("::::::end add::::::");
       return node;
     }
   }
 }
 
 Node *mul() {
-  debug("::::::start_mul::::::");
+  debug("::::::start mul::::::");
   Node *node = unary();
   for (;;) {
-    if (consume(TK_MUL)) {
+    if (consume(TK_AST)) {
       node = new_binary_node(ND_MUL, node, unary());
     } else if (consume(TK_DIV)) {
       node = new_binary_node(ND_DIV, node, unary());
     } else {
-      debug("::::::end_mul::::::");
+      debug("::::::end mul::::::");
       return node;
     }
   }
 }
 
 Node *unary() {
-  debug("::::::start_unary::::::");
+  debug("::::::start unary::::::");
+
   if (consume(TK_ADD)) {
     return unary();
   } else if (consume(TK_SUB)) {
     return new_binary_node(ND_SUB, new_number_node(0), unary());
+  } else if (consume(TK_AST)) {
+    return new_unary_node(ND_ADDR, unary());
+  } else if (consume(TK_AMP)) {
+    return new_unary_node(ND_DEREF, unary());
   }
+
   Node *node = primary();
-  debug("::::::end_unary::::::");
+  debug("::::::end unary::::::");
   return node;
 }
 
 Node *primary() {
-  debug("::::::start_primary::::::");
+  debug("::::::start primary::::::");
   if (consume(TK_LPAR)) {
     debug("::primary::expr");
     Node *node = expr();
     consume(TK_RPAR);
 
-    debug("::::::end_primary::::::");
+    debug("::::::end primary::::::");
     return node;
   }
 
@@ -459,20 +516,20 @@ Node *primary() {
         }
       }
 
-      debug("::::::end_primary::::::");
+      debug("::::::end primary::::::");
       return node;
     }
 
     // local variable
     debug("::primary::local_variable: %.*s", tok->len, tok->str);
     Node *node = new_lvar_node(tok);
-    debug("::::::end_primary::::::");
+    debug("::::::end primary::::::");
     return node;
   }
 
   debug("::primary::number");
   Node *node = new_number_node(expect_number());
 
-  debug("::::::end_primary::::::");
+  debug("::::::end primary::::::");
   return node;
 }

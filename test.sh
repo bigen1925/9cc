@@ -43,98 +43,114 @@ debug_mode="$1"
 # assert 1 "main(){ 3 >= 3; }"
 # assert 0 "main(){ 2 >= 3; }"
 
-# assert 7 "main() {
-#     foo=4;
-#     bar=3;
-#     foo+bar;
-# }
-# "
-# assert 5 "main() {
-#     return 5;
-#     return 8;
-# }"
-# assert 3 "main() {
-#     return_var = 3;
-#     return return_var;
-# }"
+assert 7 "main() {
+    int foo;
+    int bar;
+    foo=4;
+    bar=3;
+    return foo+bar;
+}
+"
+assert 5 "main() {
+    return 5;
+    return 8;
+}"
+assert 3 "main() {
+    int return_var;
+    return_var = 3;
+    return return_var;
+}"
 
-# assert 100 "main() {
-#     a = 10;
-#     if (a < 0)
-#         return 0;
-#     else if (a < 5)
-#         return 5;
-#     else
-#         return 100;
+assert 100 "main() {
+    int a;
+    a = 10;
+    if (a < 0)
+        return 0;
+    else if (a < 5)
+        return 5;
+    else
+        return 100;
 
-#     return 127;
-# }"
+    return 127;
+}"
 
-# assert 10 "main() {
-#     a = 0;
-#     while (a < 10)
-#         a = a + 1;
-#     return a;
-# }"
+assert 10 "main() {
+    int a;
+    a = 0;
+    while (a < 10)
+        a = a + 1;
+    return a;
+}"
 
-# assert 5 "main() {
-#     a = 100;
-#     while (a > 5)
-#         a = a - 1;
+assert 5 "main() {
+    int a;
+    a = 100;
+    while (a > 5)
+        a = a - 1;
 
-#     return a;
-# }"
+    return a;
+}"
 
-# assert 45 "main() {
-#     sum = 0;
-#     for (i=0; i < 10; i = i + 1)
-#         sum = sum + i;
-#     return sum;
-# }"
-# assert 10 "main() {
-#     i = 0;
-#     for (; i < 10; i = i + 1)
-#         i = i + 1;
-#     return i;
-# }"
-# assert 12 "main() {
-#     sum = 0;
-#     for (i=3; sum < 10;)
-#         sum = sum + i;
-#     return sum;
-# }"
+assert 45 "main() {
+    int sum;
+    int i;
+    sum = 0;
+    for (i=0; i < 10; i = i + 1)
+        sum = sum + i;
+    return sum;
+}"
+assert 10 "main() {
+    int i;
+    i = 0;
+    for (; i < 10; i = i + 1)
+        i = i + 1;
+    return i;
+}"
+assert 12 "main() {
+    int sum;
+    int i;
+    sum = 0;
+    for (i=3; sum < 10;)
+        sum = sum + i;
+    return sum;
+}"
 
-# assert 50 "main() {
-#     foo = 0;
-#     bar = 0;
-#     for (i=0; i < 10; i = i+1) {
-#         foo = foo + 2;
-#         bar = bar + 3;
-#     }
-#     return foo + bar;
-# }
-# "
-# assert 15 "main() {
-#     foo = 0;
-#     bar = 0;
-#     for (;;) {
-#         foo = foo + 2;
-#         bar = bar + 3;
-#         if (foo + bar > 13) {
-#             return foo + bar;
-#         }
-#     }
-# }"
+assert 50 "main() {
+    int foo;
+    int bar;
+    int i;
+    foo = 0;
+    bar = 0;
+    for (i=0; i < 10; i = i+1) {
+        foo = foo + 2;
+        bar = bar + 3;
+    }
+    return foo + bar;
+}
+"
+assert 15 "main() {
+    int foo;
+    int bar;
+    foo = 0;
+    bar = 0;
+    for (;;) {
+        foo = foo + 2;
+        bar = bar + 3;
+        if (foo + bar > 13) {
+            return foo + bar;
+        }
+    }
+}"
 
-# assert 10 "
-# main() {
-#     return foo();
-# }
+assert 10 "
+main() {
+    return foo();
+}
 
-# foo() {
-#     return 10;
-# }
-# "
+foo() {
+    return 10;
+}
+"
 assert 13 "main() {
     return foo(2, 11);
 }
@@ -155,5 +171,13 @@ fib(n) {
     return fib(n-1) + fib(n-2);
 }
 "
+
+assert 3 "main() {
+    int x;
+    int y;
+    x = 3;
+    y = *x;
+    return &y;
+}"
 
 echo "OK"
