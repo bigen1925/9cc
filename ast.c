@@ -15,9 +15,10 @@ LVar *find_lvar(Token *tok) {
   return NULL;
 }
 
-LVar *create_lvar(Token *tok) {
+LVar *create_lvar(Type *type, Token *tok) {
   LVar *var = calloc(1, sizeof(LVar));
   var->next = locals;
+  var->type = type;
   var->len = tok->len;
   var->name = tok->str;
   var->offset = locals->offset + 8;
@@ -26,15 +27,16 @@ LVar *create_lvar(Token *tok) {
   return var;
 }
 
-LVar *create_lvar_or_fail(Token *tok) {
+LVar *create_lvar_or_fail(Type *type, Token *tok) {
   LVar *var = find_lvar(tok);
 
   if (var) {
     error("redeclaration of a variable '%.*s' .", tok->len, tok->str);
   }
 
-  return create_lvar(tok);
+  return create_lvar(type, tok);
 }
+
 LVar *get_lvar_or_fail(Token *tok) {
   LVar *var = find_lvar(tok);
 
@@ -46,6 +48,14 @@ LVar *get_lvar_or_fail(Token *tok) {
 }
 
 void init_locals() { locals = calloc(1, sizeof(LVar)); }
+
+Type *new_type(TypeKind kind, Type *ptr_to) {
+  Type *type = calloc(1, sizeof(Type));
+  type->kind = kind;
+  type->ptr_to = ptr_to;
+
+  return type;
+}
 
 ////////////////////////////////////
 // AST Generator
@@ -67,10 +77,58 @@ Node *new_unary_node(NodeKind kind, Node *operand) {
   return node;
 }
 
+Node *new_addr_node(Node *operand) {
+  Node *node = new_unary_node(ND_ADDR, operand);
+
+  Type *type = calloc(1, sizeof(Type));
+  type->kind = PTR;
+  type->ptr_to = operand->type;
+
+  node->type = type;
+  return node;
+}
+
+Node *new_deref_node(Node *operand) {
+  Node *node = new_unary_node(ND_DEREF, operand);
+
+  Type *type = calloc(1, sizeof(Type));
+  type->kind = operand->type->ptr_to->kind;
+  type->ptr_to = operand->type->ptr_to->ptr_to;
+
+  node->type = type;
+  return node;
+}
+
 Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = new_node(kind);
   append_child(lhs, node);
   append_child(rhs, node);
+  return node;
+}
+
+Node *new_add_sub_node(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = new_binary_node(kind, lhs, rhs);
+  if (lhs->type->kind == INT && rhs->type->kind == INT) {
+    node->type = new_type(INT, NULL);
+  } else if (lhs->type->kind == PTR && rhs->type->kind == INT) {
+    node->type = lhs->type;
+  } else if (lhs->type->kind == INT && rhs->type->kind == PTR) {
+    node->type = rhs->type;
+  } else {
+    error("unexpected types of addition, %d and %d.", lhs->type->kind,
+          rhs->type->kind);
+  }
+  return node;
+}
+
+Node *new_mul_div_node(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = new_binary_node(kind, lhs, rhs);
+  if (lhs->type->kind == INT && rhs->type->kind == INT) {
+    node->type = new_type(INT, NULL);
+  } else {
+    error("unexpected types of multiply, %d and %d.", lhs->type->kind,
+          rhs->type->kind);
+  }
   return node;
 }
 
@@ -118,8 +176,8 @@ Node *new_function_node(char *str, int len) {
   return node;
 }
 
-Node *new_arg_node(Token *tok) {
-  LVar *var = create_lvar_or_fail(tok);
+Node *new_arg_node(Type *type, Token *tok) {
+  LVar *var = create_lvar_or_fail(type, tok);
   Node *node = new_node(ND_ARG);
   node->num = var->offset;
   return node;
@@ -128,18 +186,21 @@ Node *new_arg_node(Token *tok) {
 Node *new_lvar_node(Token *tok) {
   LVar *var = get_lvar_or_fail(tok);
   Node *node = new_node(ND_LVAR);
+  node->type = var->type;
   node->num = var->offset;
   return node;
 }
 
 Node *new_call_node(char *str, int len) {
   Node *node = new_node(ND_CALL);
+  node->type = new_type(INT, NULL);
   node->str = str;
   node->num = len;
 }
 
 Node *new_number_node(int val) {
   Node *node = new_node(ND_NUM);
+  node->type = new_type(INT, NULL);
   node->num = val;
   return node;
 }
@@ -191,7 +252,7 @@ Token *expect_ident() {
 }
 
 Token *expect_type() {
-  if (token->kind != TK_TYPE) error_at(token->str, "expected an ident.");
+  if (token->kind != TK_TYPE) error_at(token->str, "expected an type->");
 
   Token *tok = token;
   token = token->next;
@@ -217,7 +278,7 @@ bool at_eof() { return token->kind == TK_EOF; }
 //      if          = "if" "(" expr ")" stmt ("else" stmt)?
 //      while       = "while" "(" expr ")" stmt
 //      for         = "for" "(" expr? ";" expr? ";" expr? ";" ")" stmt
-//      var_dec     = type ident ";"
+//      var_dec     = "int" ("*"*) ident ";"
 //      expr        = assign
 //      assign      = equality ("=" assign)?
 //      qeuality    = relational ("==" ralational | "!=" relational)*
@@ -246,18 +307,23 @@ Node *program() {
 
 Node *function() {
   debug("::::::start function::::::");
+  expect_type();
   Token *tok = expect_ident();
   expect(TK_LPAR);
 
   Node *node = new_function_node(tok->str, tok->len);
 
   if (!consume(TK_RPAR)) {
+    expect_type();
     tok = expect_ident();
-    append_child(new_arg_node(tok), node);
+    Type *type = new_type(INT, NULL);
+    append_child(new_arg_node(type, tok), node);
 
     while (consume(TK_COMMA)) {
+      expect_type();
       tok = expect_ident();
-      append_child(new_arg_node(tok), node);
+      Type *type = new_type(INT, NULL);
+      append_child(new_arg_node(type, tok), node);
     }
 
     expect(TK_RPAR);
@@ -373,8 +439,12 @@ Node *var_dec() {
 
   Token *tok = expect_type();
   if (!strncmp(tok->str, "int", 3)) {
+    Type *type = new_type(INT, NULL);
+    while (consume(TK_AST)) {
+      type = new_type(PTR, type);
+    }
     tok = expect_ident();
-    LVar *var = create_lvar_or_fail(tok);
+    LVar *var = create_lvar_or_fail(type, tok);
   }
   expect(TK_PUNC);
 
@@ -446,9 +516,9 @@ Node *add() {
 
   for (;;) {
     if (consume(TK_ADD)) {
-      node = new_binary_node(ND_ADD, node, mul());
+      node = new_add_sub_node(ND_ADD, node, mul());
     } else if (consume(TK_SUB)) {
-      node = new_binary_node(ND_SUB, node, mul());
+      node = new_add_sub_node(ND_SUB, node, mul());
     } else {
       debug("::::::end add::::::");
       return node;
@@ -461,9 +531,9 @@ Node *mul() {
   Node *node = unary();
   for (;;) {
     if (consume(TK_AST)) {
-      node = new_binary_node(ND_MUL, node, unary());
+      node = new_mul_div_node(ND_MUL, node, unary());
     } else if (consume(TK_DIV)) {
-      node = new_binary_node(ND_DIV, node, unary());
+      node = new_mul_div_node(ND_DIV, node, unary());
     } else {
       debug("::::::end mul::::::");
       return node;
@@ -477,11 +547,11 @@ Node *unary() {
   if (consume(TK_ADD)) {
     return unary();
   } else if (consume(TK_SUB)) {
-    return new_binary_node(ND_SUB, new_number_node(0), unary());
+    return new_add_sub_node(ND_SUB, new_number_node(0), unary());
   } else if (consume(TK_AST)) {
-    return new_unary_node(ND_ADDR, unary());
+    return new_deref_node(unary());
   } else if (consume(TK_AMP)) {
-    return new_unary_node(ND_DEREF, unary());
+    return new_addr_node(unary());
   }
 
   Node *node = primary();

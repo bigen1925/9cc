@@ -24,6 +24,17 @@ void gen_set_parameters(Node *node) {
   if (cur == NULL) return;
   gen(cur->node);
   printf("  pop rcx\n");
+  cur = cur->next;
+
+  if (cur == NULL) return;
+  gen(cur->node);
+  printf("  pop r8\n");
+  cur = cur->next;
+
+  if (cur == NULL) return;
+  gen(cur->node);
+  printf("  pop r9\n");
+  cur = cur->next;
 }
 
 void gen_assign_arguments(Node *node) {
@@ -51,22 +62,41 @@ void gen_assign_arguments(Node *node) {
   printf("  sub rax, %d\n", cur->node->num);
   printf("  mov [rax], rcx\n");
   cur = cur->next;
+
+  if (!cur) return;
+  printf("  mov rax, rbp\n");
+  printf("  sub rax, %d\n", cur->node->num);
+  printf("  mov [rax], r8\n");
+  cur = cur->next;
+
+  if (!cur) return;
+  printf("  mov rax, rbp\n");
+  printf("  sub rax, %d\n", cur->node->num);
+  printf("  mov [rax], r9\n");
+  cur = cur->next;
 }
 
 void gen_lval(Node *node) {
-  if (node->kind != ND_LVAR) {
-    error("left value of assignment is not local variable.");
+  if (node->kind == ND_DEREF) {
+    gen(get_child_at(0, node));
+    return;
   }
 
-  printf("  mov rax, rbp\n");
-  printf("  sub rax, %d\n", node->num);
-  printf("  push rax\n");
+  if (node->kind == ND_LVAR) {
+    printf("  mov rax, rbp\n");
+    printf("  sub rax, %d\n", node->num);
+    printf("  push rax\n");
+    return;
+  }
+
+  error("left value must be variable or dereference.");
 }
 
 void gen(Node *node) {
   debug(";;;;generate::kind -> %d", node->kind);
   if (node->kind == ND_NUM) {
-    printf("  push %d \n", node->num);
+    printf("  mov eax, %d\n", node->num);
+    printf("  push rax\n");
     return;
   }
 
@@ -114,13 +144,19 @@ void gen(Node *node) {
     printf("  je .L_if_else_%d\n", node->num);
 
     gen(get_child_at(1, node));  // body
+    printf("pop rax\n");
 
     printf("  jmp .L_if_end_%d\n", node->num);
     printf(".L_if_else_%d:\n", node->num);
 
-    if (get_child_at(2, node) != NULL) gen(get_child_at(2, node));  // else
+    if (get_child_at(2, node) != NULL) {  // else
+      gen(get_child_at(2, node));
+      printf("pop rax\n");
+    }
 
     printf(".L_if_end_%d:\n", node->num);
+    printf("push rax\n");  // push a dummy value
+
     return;
   }
 
@@ -134,15 +170,19 @@ void gen(Node *node) {
     printf("  je .L_while_end_%d\n", node->num);
 
     gen(get_child_at(1, node));  // body
+    printf("pop rax\n");
 
     printf("  jmp .L_while_begin_%d\n", node->num);
     printf(".L_while_end_%d:\n", node->num);
+
+    printf("push rax\n");  // push a dummy value
     return;
   }
 
   if (node->kind == ND_FOR) {
     if (get_child_at(0, node) != NULL) {
       gen(get_child_at(0, node));  // initialization
+      printf("  pop rax\n");
     }
 
     printf(".L_for_begin_%d:\n", node->num);
@@ -154,14 +194,17 @@ void gen(Node *node) {
       printf("  je .L_for_end_%d\n", node->num);
     }
 
-    gen(get_child_at(3, node));
+    gen(get_child_at(3, node));  // body
+    printf("  pop rax\n");
 
     if (get_child_at(2, node) != NULL) {
       gen(get_child_at(2, node));  // step
+      printf("  pop rax\n");
     }
 
     printf("  jmp .L_for_begin_%d\n", node->num);
     printf(".L_for_end_%d:\n", node->num);
+    printf("  push rax\n");
     return;
   }
 
@@ -214,7 +257,7 @@ void gen(Node *node) {
   }
 
   if (node->kind == ND_VAR_DEC) {
-    printf("  push 0\n");  // for convinience, push a dummy value.
+    printf("  push rax\n");
     return;
   }
 
@@ -224,21 +267,42 @@ void gen(Node *node) {
   }
 
   if (node->kind == ND_DEREF) {
-    gen(get_child_at(0, node));    // generate an address
-    printf("  pop rax\n");         // pop an address
-    printf("  mov rax, [rax]\n");  // get a value on an address
-    printf("  push rax\n");        // push a value
+    Node *ptr_node = get_child_at(0, node);
+    gen(ptr_node);                              // generate an address
+    printf("  pop rax\n");                      // pop an address
+    if (ptr_node->type->ptr_to->kind == INT) {  // get a value on an address
+      printf("  mov eax, [rax]\n");
+    } else if (ptr_node->type->ptr_to->kind == PTR) {
+      printf("  mov rax, [rax]\n");
+    }
+    printf("  push rax\n");  // push a value
     return;
   }
 
-  gen(get_child_at(0, node));
-  gen(get_child_at(1, node));
+  // binary operator
+  Node *lhs = get_child_at(0, node);
+  Node *rhs = get_child_at(1, node);
+  gen(lhs);
+  gen(rhs);
 
   printf("  pop rdi\n");
   printf("  pop rax\n");
 
   switch (node->kind) {
     case ND_ADD:
+      if (lhs->type->kind == PTR && rhs->type->kind == INT) {
+        if (lhs->type->ptr_to->kind == INT) {
+          printf("  imul rdi, 4\n");
+        } else if (lhs->type->ptr_to->kind == PTR) {
+          printf("  imul rdi, 8\n");
+        }
+      } else if (lhs->type->kind == INT && rhs->type->kind == PTR) {
+        if (rhs->type->ptr_to->kind == INT) {
+          printf("  imul rax, 4\n");
+        } else if (rhs->type->ptr_to->kind == PTR) {
+          printf("  imul rax, 8\n");
+        }
+      }
       printf("  add rax, rdi\n");
       break;
     case ND_SUB:

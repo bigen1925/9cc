@@ -46,14 +46,37 @@ struct Token {
   int len;
 };
 
+// Local Varicables
+typedef enum {
+  INT,
+  PTR,
+} TypeKind;
+
+typedef struct Type Type;
+struct Type {
+  TypeKind kind;
+  Type *ptr_to;
+};
+
+typedef struct LVar LVar;
+struct LVar {
+  LVar *next;
+  Type *type;
+  char *name;
+  int len;
+  int offset;
+};
+
+extern LVar *lacals;
+
 // Node Kind
 typedef enum {
   ND_ADD,      // +
   ND_SUB,      // -
   ND_MUL,      // * (multiply)
   ND_DIV,      // /
-  ND_ADDR,     // * (address)
-  ND_DEREF,    // & (dereference)
+  ND_DEREF,    // * (dereference)
+  ND_ADDR,     // & (address)
   ND_EQ,       // ==
   ND_NE,       // !=
   ND_LT,       // <
@@ -80,6 +103,7 @@ typedef struct NodeLinkedListItem NodeLinkedListItem;
 struct Node {
   NodeKind kind;
   NodeLinkedList *children;
+  Type *type;
   int num;
   char *str;
 };
@@ -126,14 +150,3 @@ Node *add();
 Node *mul();
 Node *primary();
 Node *unary();
-
-// Local Varicables
-typedef struct LVar LVar;
-struct LVar {
-  LVar *next;
-  char *name;
-  int len;
-  int offset;
-};
-
-extern LVar *lacals;

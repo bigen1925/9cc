@@ -4,7 +4,7 @@ assert() {
     input="$2"
     
     ./9cc "${input}" "${debug_mode}" > tmp.s
-    cc -o tmp tmp.s func.c
+    cc -o tmp tmp.s helper.o
     ./tmp
     
     actual="$?"
@@ -19,31 +19,31 @@ assert() {
 
 debug_mode="$1"
 
-# assert 0 "main(){ 0; }"
-# assert 42 "main(){ 42; }"
-# assert 21 "main(){ 5+20-4; }"
-# assert 41 "main(){ 12 + 34 - 5 ; }"
-# assert 47 "main(){ 5 + 6*7 ; }"
-# assert 15 "main(){ 5 * (9 - 6); }"
-# assert 4 "main(){ (3 + 5) / 2; }"
-# assert 5 "main(){ -3 + 8; }"
-# assert 2 "main(){ 8 + -3*+2; }"
-# assert 10 "main(){ - - +10; }"
+assert 0 "int main(){ 0; }"
+assert 42 "int main(){ 42; }"
+assert 21 "int main(){ 5+20-4; }"
+assert 41 "int main(){ 12 + 34 - 5 ; }"
+assert 47 "int main(){ 5 + 6*7 ; }"
+assert 15 "int main(){ 5 * (9 - 6); }"
+assert 4 "int main(){ (3 + 5) / 2; }"
+assert 5 "int main(){ -3 + 8; }"
+assert 2 "int main(){ 8 + -3*+2; }"
+assert 10 "int main(){ - - +10; }"
 
-# assert 1 "main(){ 3 == 3; }"
-# assert 0 "main(){ 5 == 3; }"
-# assert 1 "main(){ 5 != 3; }"
-# assert 0 "main(){ 3 != 3; }"
-# assert 1 "main(){ 2 < 3; }"
-# assert 0 "main(){ 3 < 3; }"
-# assert 1 "main(){ 3 <= 3; }"
-# assert 0 "main(){ 4 <= 3; }"
-# assert 1 "main(){ 4 > 3; }"
-# assert 0 "main(){ 3 > 3; }"
-# assert 1 "main(){ 3 >= 3; }"
-# assert 0 "main(){ 2 >= 3; }"
+assert 1 "int main(){ 3 == 3; }"
+assert 0 "int main(){ 5 == 3; }"
+assert 1 "int main(){ 5 != 3; }"
+assert 0 "int main(){ 3 != 3; }"
+assert 1 "int main(){ 2 < 3; }"
+assert 0 "int main(){ 3 < 3; }"
+assert 1 "int main(){ 3 <= 3; }"
+assert 0 "int main(){ 4 <= 3; }"
+assert 1 "int main(){ 4 > 3; }"
+assert 0 "int main(){ 3 > 3; }"
+assert 1 "int main(){ 3 >= 3; }"
+assert 0 "int main(){ 2 >= 3; }"
 
-assert 7 "main() {
+assert 7 "int main() {
     int foo;
     int bar;
     foo=4;
@@ -51,17 +51,17 @@ assert 7 "main() {
     return foo+bar;
 }
 "
-assert 5 "main() {
+assert 5 "int main() {
     return 5;
     return 8;
 }"
-assert 3 "main() {
+assert 3 "int main() {
     int return_var;
     return_var = 3;
     return return_var;
 }"
 
-assert 100 "main() {
+assert 100 "int main() {
     int a;
     a = 10;
     if (a < 0)
@@ -74,7 +74,7 @@ assert 100 "main() {
     return 127;
 }"
 
-assert 10 "main() {
+assert 10 "int main() {
     int a;
     a = 0;
     while (a < 10)
@@ -82,7 +82,7 @@ assert 10 "main() {
     return a;
 }"
 
-assert 5 "main() {
+assert 5 "int main() {
     int a;
     a = 100;
     while (a > 5)
@@ -91,7 +91,7 @@ assert 5 "main() {
     return a;
 }"
 
-assert 45 "main() {
+assert 45 "int main() {
     int sum;
     int i;
     sum = 0;
@@ -99,14 +99,14 @@ assert 45 "main() {
         sum = sum + i;
     return sum;
 }"
-assert 10 "main() {
+assert 10 "int main() {
     int i;
     i = 0;
     for (; i < 10; i = i + 1)
         i = i + 1;
     return i;
 }"
-assert 12 "main() {
+assert 12 "int main() {
     int sum;
     int i;
     sum = 0;
@@ -115,7 +115,7 @@ assert 12 "main() {
     return sum;
 }"
 
-assert 50 "main() {
+assert 50 "int main() {
     int foo;
     int bar;
     int i;
@@ -128,7 +128,7 @@ assert 50 "main() {
     return foo + bar;
 }
 "
-assert 15 "main() {
+assert 15 "int main() {
     int foo;
     int bar;
     foo = 0;
@@ -143,28 +143,28 @@ assert 15 "main() {
 }"
 
 assert 10 "
-main() {
+int main() {
     return foo();
 }
 
-foo() {
+int foo() {
     return 10;
 }
 "
-assert 13 "main() {
+assert 13 "int main() {
     return foo(2, 11);
 }
 
-foo(x, y) {
+int foo(int x, int y) {
     return x + y;
 }
 "
 
-assert 55 "main() {
+assert 55 "int main() {
     return fib(10);
 }
 
-fib(n) {
+int fib(int n) {
     if (n == 1) return 1;
     if (n == 2) return 1;
 
@@ -172,12 +172,39 @@ fib(n) {
 }
 "
 
-assert 3 "main() {
+assert 3 "int main() {
     int x;
-    int y;
+    int *y;
     x = 3;
-    y = *x;
-    return &y;
+    y = &x;
+    return *y;
+}"
+
+assert 3 "int main() {
+    int x;
+    int *y;
+    int **z;
+    z = &y;
+    y = &x;
+    **z = 3;
+    return x;
+}"
+
+assert 0 "int main() {
+    int *p;
+    alloc4(&p, 9, 10, 11, 12);
+    int *q;
+
+    q = p + 2;
+    if (*q != 11) {
+        return 1;
+    }
+
+    q = p + 3;
+    if (*q != 12) {
+        return 2;
+    }
+    return 0;
 }"
 
 echo "OK"
