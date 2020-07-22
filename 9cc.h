@@ -31,6 +31,7 @@ typedef enum {
   TK_WHILE,   // "while"
   TK_FOR,     // "for"
   TK_TYPE,    // "int"
+  TK_SIZEOF,  // "sizeof"
   TK_IDENT,   // <identifier>
   TK_NUM,     // <integer literal>
   TK_EOF,     // End-of-file markers
@@ -86,6 +87,7 @@ typedef enum {
   ND_IF,       // if
   ND_WHILE,    // while
   ND_FOR,      // for
+  ND_SIZEOF,   // sizeof
   ND_LVAR,     // Local Variable
   ND_CALL,     // Function Call
   ND_NUM,      // Number

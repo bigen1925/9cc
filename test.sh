@@ -207,4 +207,18 @@ assert 0 "int main() {
     return 0;
 }"
 
+assert 0 "int main() {
+    int x;
+    int *y;
+
+    if (sizeof(x) != 4) return 1;
+    if (sizeof(y) != 8) return 1;
+    if (sizeof(x+3) != 4) return 1;
+    if (sizeof(y+3) != 8) return 1;
+    if (sizeof(*y) != 4) return 1;
+    if (sizeof(1) != 4) return 1;
+    if (sizeof(sizeof(x)) != 4) return 1;
+    return 0;
+}"
+
 echo "OK"

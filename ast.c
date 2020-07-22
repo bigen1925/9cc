@@ -88,6 +88,17 @@ Node *new_addr_node(Node *operand) {
   return node;
 }
 
+Node *new_sizeof_node(Node *operand) {
+  Node *node = new_unary_node(ND_SIZEOF, operand);
+
+  Type *type = calloc(1, sizeof(Type));
+  type->kind = INT;
+  type->ptr_to = NULL;
+
+  node->type = type;
+  return node;
+}
+
 Node *new_deref_node(Node *operand) {
   Node *node = new_unary_node(ND_DEREF, operand);
 
@@ -287,6 +298,7 @@ bool at_eof() { return token->kind == TK_EOF; }
 //      mul         = unary ("*" unary | "/" unary)
 //      unary       = ("+" | "-")? primary
 //                  | ("*" | "&") unary
+//                  | "sizeof" unary
 //      primary     = num
 //                  | ident ("(" (expr ("," expr)*)? ")")?
 //                  | "(" expr ")"
@@ -552,6 +564,8 @@ Node *unary() {
     return new_deref_node(unary());
   } else if (consume(TK_AMP)) {
     return new_addr_node(unary());
+  } else if (consume(TK_SIZEOF)) {
+    return new_sizeof_node(unary());
   }
 
   Node *node = primary();

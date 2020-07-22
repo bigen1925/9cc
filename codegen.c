@@ -3,6 +3,15 @@
 ////////////////////////////////////
 // Code Generator
 ////////////////////////////////////
+int get_size_of_type(Type *type) {
+  switch (type->kind) {
+    case INT:
+      return 4;
+
+    case PTR:
+      return 8;
+  }
+}
 
 void gen_set_parameters(Node *node) {
   NodeLinkedListItem *cur = node->children->head;
@@ -279,6 +288,12 @@ void gen(Node *node) {
     return;
   }
 
+  if (node->kind == ND_SIZEOF) {
+    Node *child_node = get_child_at(0, node);
+    printf("  push %d\n", get_size_of_type(child_node->type));
+    return;
+  }
+
   // binary operator
   Node *lhs = get_child_at(0, node);
   Node *rhs = get_child_at(1, node);
@@ -291,17 +306,9 @@ void gen(Node *node) {
   switch (node->kind) {
     case ND_ADD:
       if (lhs->type->kind == PTR && rhs->type->kind == INT) {
-        if (lhs->type->ptr_to->kind == INT) {
-          printf("  imul rdi, 4\n");
-        } else if (lhs->type->ptr_to->kind == PTR) {
-          printf("  imul rdi, 8\n");
-        }
+        printf("  imul rdi, %d\n", get_size_of_type(lhs->type->ptr_to));
       } else if (lhs->type->kind == INT && rhs->type->kind == PTR) {
-        if (rhs->type->ptr_to->kind == INT) {
-          printf("  imul rax, 4\n");
-        } else if (rhs->type->ptr_to->kind == PTR) {
-          printf("  imul rax, 8\n");
-        }
+        printf("  imul rdi, %d\n", get_size_of_type(rhs->type->ptr_to));
       }
       printf("  add rax, rdi\n");
       break;
