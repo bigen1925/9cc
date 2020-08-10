@@ -3,15 +3,6 @@
 ////////////////////////////////////
 // Code Generator
 ////////////////////////////////////
-int get_size_of_type(Type *type) {
-  switch (type->kind) {
-    case INT:
-      return 4;
-
-    case PTR:
-      return 8;
-  }
-}
 
 void gen_set_parameters(Node *node) {
   NodeLinkedListItem *cur = node->children->head;
@@ -51,37 +42,61 @@ void gen_assign_arguments(Node *node) {
   if (!cur) return;
   printf("  mov rax, rbp\n");
   printf("  sub rax, %d\n", cur->node->num);
-  printf("  mov [rax], rdi\n");
+  if (cur->node->type->kind == INT) {
+    printf("  mov [rax], edi\n");
+  } else {
+    printf("  mov [rax], rdi\n");
+  }
   cur = cur->next;
 
   if (!cur) return;
   printf("  mov rax, rbp\n");
   printf("  sub rax, %d\n", cur->node->num);
-  printf("  mov [rax], rsi\n");
+  if (cur->node->type->kind == INT) {
+    printf("  mov [rax], esi\n");
+  } else {
+    printf("  mov [rax], rsi\n");
+  }
   cur = cur->next;
 
   if (!cur) return;
   printf("  mov rax, rbp\n");
   printf("  sub rax, %d\n", cur->node->num);
-  printf("  mov [rax], rdx\n");
+  if (cur->node->type->kind == INT) {
+    printf("  mov [rax], edx\n");
+  } else {
+    printf("  mov [rax], rdx\n");
+  }
   cur = cur->next;
 
   if (!cur) return;
   printf("  mov rax, rbp\n");
   printf("  sub rax, %d\n", cur->node->num);
-  printf("  mov [rax], rcx\n");
+  if (cur->node->type->kind == INT) {
+    printf("  mov [rax], ecx\n");
+  } else {
+    printf("  mov [rax], rcx\n");
+  }
   cur = cur->next;
 
   if (!cur) return;
   printf("  mov rax, rbp\n");
   printf("  sub rax, %d\n", cur->node->num);
-  printf("  mov [rax], r8\n");
+  if (cur->node->type->kind == INT) {
+    printf("  mov [rax], r8d\n");
+  } else {
+    printf("  mov [rax], r8\n");
+  }
   cur = cur->next;
 
   if (!cur) return;
   printf("  mov rax, rbp\n");
   printf("  sub rax, %d\n", cur->node->num);
-  printf("  mov [rax], r9\n");
+  if (cur->node->type->kind == INT) {
+    printf("  mov [rax], r9d\n");
+  } else {
+    printf("  mov [rax], r9\n");
+  }
   cur = cur->next;
 }
 
@@ -111,9 +126,15 @@ void gen(Node *node) {
 
   if (node->kind == ND_LVAR) {
     gen_lval(node);
-    printf("  pop rax\n");
-    printf("  mov rax, [rax]\n");
-    printf("  push rax\n");
+    if (node->type->kind != ARRAY) {
+      printf("  pop rax\n");
+      if (node->type->kind == INT) {
+        printf("  mov eax, [rax]\n");
+      } else if (node->type->kind == PTR) {
+        printf("  mov rax, [rax]\n");
+      }
+      printf("  push rax\n");
+    }
     return;
   }
 
@@ -130,7 +151,11 @@ void gen(Node *node) {
 
     printf("  pop rdi\n");
     printf("  pop rax\n");
-    printf("  mov [rax], rdi\n");
+    if (get_child_at(0, node)->type->kind == INT) {
+      printf("  mov [rax], edi\n");
+    } else {
+      printf("  mov [rax], rdi\n");
+    }
     printf("  push rdi\n");
     return;
   }
@@ -218,11 +243,8 @@ void gen(Node *node) {
   }
 
   if (node->kind == ND_BLOCK) {
-    debug("hoge:::::::");
     NodeLinkedListItem *cur = node->children->head;
     while (cur != NULL) {
-      debug("fuga:::::::");
-
       gen(cur->node);
       printf("  pop rax\n");
       cur = cur->next;
@@ -305,9 +327,11 @@ void gen(Node *node) {
 
   switch (node->kind) {
     case ND_ADD:
-      if (lhs->type->kind == PTR && rhs->type->kind == INT) {
+      if ((lhs->type->kind == PTR || lhs->type->kind == ARRAY) &&
+          rhs->type->kind == INT) {
         printf("  imul rdi, %d\n", get_size_of_type(lhs->type->ptr_to));
-      } else if (lhs->type->kind == INT && rhs->type->kind == PTR) {
+      } else if (lhs->type->kind == INT &&
+                 (rhs->type->kind == PTR || rhs->type->kind == ARRAY)) {
         printf("  imul rdi, %d\n", get_size_of_type(rhs->type->ptr_to));
       }
       printf("  add rax, rdi\n");

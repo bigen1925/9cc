@@ -21,8 +21,10 @@ typedef enum {
   TK_ASSIGN,  // "="
   TK_LPAR,    // "("
   TK_RPAR,    // ")"
-  TK_LBRA,    // "{"
-  TK_RBRA,    // "}"
+  TK_LBRC,    // "{"
+  TK_RBRC,    // "}"
+  TK_LBRK,    // "["
+  TK_RBRK,    // "]"
   TK_COMMA,   // ","
   TK_PUNC,    // ";"
   TK_RETURN,  // "return"
@@ -51,12 +53,14 @@ struct Token {
 typedef enum {
   INT,
   PTR,
+  ARRAY,
 } TypeKind;
 
 typedef struct Type Type;
 struct Type {
   TypeKind kind;
   Type *ptr_to;
+  int array_size;
 };
 
 typedef struct LVar LVar;
@@ -69,6 +73,7 @@ struct LVar {
 };
 
 extern LVar *lacals;
+int get_size_of_type(Type *type);
 
 // Node Kind
 typedef enum {

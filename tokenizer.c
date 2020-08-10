@@ -119,11 +119,19 @@ Token *tokenize() {
       continue;
     }
     if (startswith(p, "{")) {
-      cur = new_token(TK_LBRA, cur, p++, 1);
+      cur = new_token(TK_LBRC, cur, p++, 1);
       continue;
     }
     if (startswith(p, "}")) {
-      cur = new_token(TK_RBRA, cur, p++, 1);
+      cur = new_token(TK_RBRC, cur, p++, 1);
+      continue;
+    }
+    if (startswith(p, "[")) {
+      cur = new_token(TK_LBRK, cur, p++, 1);
+      continue;
+    }
+    if (startswith(p, "]")) {
+      cur = new_token(TK_RBRK, cur, p++, 1);
       continue;
     }
     if ((strncmp(p, "return", 6) == 0) && !is_alnum(p[6])) {

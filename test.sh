@@ -221,4 +221,16 @@ assert 0 "int main() {
     return 0;
 }"
 
+assert 6 "int main() {
+    int a[3];
+
+    *a = 1;
+    *(a+1) = 2;
+    a[2] = 3;
+
+    int *p;
+    p = a;
+    return *a + p[1] + *(p + 2);
+}"
+
 echo "OK"

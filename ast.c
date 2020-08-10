@@ -21,7 +21,8 @@ LVar *create_lvar(Type *type, Token *tok) {
   var->type = type;
   var->len = tok->len;
   var->name = tok->str;
-  var->offset = locals->offset + 8;
+  var->offset = locals->offset + get_size_of_type(type);
+
   locals = var;
 
   return var;
@@ -57,6 +58,26 @@ Type *new_type(TypeKind kind, Type *ptr_to) {
   return type;
 }
 
+int get_size_of_type(Type *type) {
+  switch (type->kind) {
+    case INT:
+      return 4;
+
+    case PTR:
+      return 8;
+
+    case ARRAY:
+      return get_size_of_type(type->ptr_to) * type->array_size;
+  }
+}
+
+Type *new_array_type(Type *ptr_to, int size) {
+  Type *type = new_type(ARRAY, ptr_to);
+  type->array_size = size;
+
+  return type;
+}
+
 ////////////////////////////////////
 // AST Generator
 ////////////////////////////////////
@@ -80,33 +101,23 @@ Node *new_unary_node(NodeKind kind, Node *operand) {
 Node *new_addr_node(Node *operand) {
   Node *node = new_unary_node(ND_ADDR, operand);
 
-  Type *type = calloc(1, sizeof(Type));
-  type->kind = PTR;
-  type->ptr_to = operand->type;
+  node->type = new_type(PTR, operand->type);
 
-  node->type = type;
   return node;
 }
 
 Node *new_sizeof_node(Node *operand) {
   Node *node = new_unary_node(ND_SIZEOF, operand);
-
-  Type *type = calloc(1, sizeof(Type));
-  type->kind = INT;
-  type->ptr_to = NULL;
-
-  node->type = type;
+  node->type = new_type(INT, NULL);
+  ;
   return node;
 }
 
 Node *new_deref_node(Node *operand) {
   Node *node = new_unary_node(ND_DEREF, operand);
+  node->type =
+      new_type(operand->type->ptr_to->kind, operand->type->ptr_to->ptr_to);
 
-  Type *type = calloc(1, sizeof(Type));
-  type->kind = operand->type->ptr_to->kind;
-  type->ptr_to = operand->type->ptr_to->ptr_to;
-
-  node->type = type;
   return node;
 }
 
@@ -125,6 +136,10 @@ Node *new_add_sub_node(NodeKind kind, Node *lhs, Node *rhs) {
     node->type = lhs->type;
   } else if (lhs->type->kind == INT && rhs->type->kind == PTR) {
     node->type = rhs->type;
+  } else if (lhs->type->kind == ARRAY && rhs->type->kind == INT) {
+    node->type = new_type(PTR, lhs->type->ptr_to);
+  } else if (lhs->type->kind == INT && rhs->type->kind == ARRAY) {
+    node->type = new_type(PTR, rhs->type->ptr_to);
   } else {
     error("unexpected types of addition, %d and %d.", lhs->type->kind,
           rhs->type->kind);
@@ -191,13 +206,16 @@ Node *new_arg_node(Type *type, Token *tok) {
   LVar *var = create_lvar_or_fail(type, tok);
   Node *node = new_node(ND_ARG);
   node->num = var->offset;
+  node->type = var->type;
   return node;
 }
 
 Node *new_lvar_node(Token *tok) {
   LVar *var = get_lvar_or_fail(tok);
   Node *node = new_node(ND_LVAR);
+
   node->type = var->type;
+
   node->num = var->offset;
   return node;
 }
@@ -289,7 +307,7 @@ bool at_eof() { return token->kind == TK_EOF; }
 //      if          = "if" "(" expr ")" stmt ("else" stmt)?
 //      while       = "while" "(" expr ")" stmt
 //      for         = "for" "(" expr? ";" expr? ";" expr? ";" ")" stmt
-//      var_dec     = "int" ("*"*) ident ";"
+//      var_dec     = "int" ("*"* ident | ident ("[" num "]")*) ";"
 //      expr        = assign
 //      assign      = equality ("=" assign)?
 //      qeuality    = relational ("==" ralational | "!=" relational)*
@@ -301,6 +319,7 @@ bool at_eof() { return token->kind == TK_EOF; }
 //                  | "sizeof" unary
 //      primary     = num
 //                  | ident ("(" (expr ("," expr)*)? ")")?
+//                  | primary "[" primary "]"
 //                  | "(" expr ")"
 ////////////////////////////////////////////////
 
@@ -351,7 +370,7 @@ Node *stmt() {
   debug("::::::start stmt::::::");
   Node *node;
 
-  if (lookahead(TK_LBRA)) {
+  if (lookahead(TK_LBRC)) {
     node = block();
   } else if (lookahead(TK_IF)) {
     node = if_ast();
@@ -379,9 +398,9 @@ Node *stmt() {
 Node *block() {
   debug("::::::start block::::::");
 
-  expect(TK_LBRA);
+  expect(TK_LBRC);
   Node *node = new_node(ND_BLOCK);
-  while (!consume(TK_RBRA)) {
+  while (!consume(TK_RBRC)) {
     append_child(stmt(), node);
   }
 
@@ -455,7 +474,14 @@ Node *var_dec() {
     while (consume(TK_AST)) {
       type = new_type(PTR, type);
     }
+
     tok = expect_ident();
+
+    while (consume(TK_LBRK)) {
+      type = new_array_type(type, expect_number());
+      expect(TK_RBRK);
+    }
+
     LVar *var = create_lvar_or_fail(type, tok);
   }
   expect(TK_PUNC);
@@ -575,44 +601,49 @@ Node *unary() {
 
 Node *primary() {
   debug("::::::start primary::::::");
+  Node *node;
+
   if (consume(TK_LPAR)) {
     debug("::primary::expr");
-    Node *node = expr();
+    node = expr();
     consume(TK_RPAR);
-
-    debug("::::::end primary::::::");
-    return node;
   }
 
-  Token *tok = consume_ident();
-  if (tok) {
-    if (consume(TK_LPAR)) {
-      // function call
-      debug("::primary::call: %.*s", tok->len, tok->str);
-      Node *node = new_call_node(tok->str, tok->len);
+  else {
+    Token *tok = consume_ident();
+    if (tok) {
+      if (consume(TK_LPAR)) {
+        // function call
+        debug("::primary::call: %.*s", tok->len, tok->str);
+        node = new_call_node(tok->str, tok->len);
 
-      if (!consume(TK_RPAR)) {
-        append_child(expr(), node);
-
-        while (!consume(TK_RPAR)) {
-          expect(TK_COMMA);
+        if (!consume(TK_RPAR)) {
           append_child(expr(), node);
+
+          while (!consume(TK_RPAR)) {
+            expect(TK_COMMA);
+            append_child(expr(), node);
+          }
         }
       }
 
-      debug("::::::end primary::::::");
-      return node;
+      else {
+        // local variable
+        debug("::primary::local_variable: %.*s", tok->len, tok->str);
+        node = new_lvar_node(tok);
+      }
     }
 
-    // local variable
-    debug("::primary::local_variable: %.*s", tok->len, tok->str);
-    Node *node = new_lvar_node(tok);
-    debug("::::::end primary::::::");
-    return node;
+    else {
+      debug("::primary::number");
+      node = new_number_node(expect_number());
+    }
   }
 
-  debug("::primary::number");
-  Node *node = new_number_node(expect_number());
+  if (consume(TK_LBRK)) {
+    node = new_deref_node(new_add_sub_node(ND_ADD, node, primary()));
+    expect(TK_RBRK);
+  }
 
   debug("::::::end primary::::::");
   return node;
